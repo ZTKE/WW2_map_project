@@ -37,7 +37,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             ZWrite On
 
             HLSLPROGRAM
-
             #pragma require tessellation
             #pragma require geometry
 
@@ -438,6 +437,183 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             half4 frag(Varyings i) : SV_Target {
                 return 0;
             }
+            ENDHLSL
+        }
+
+        Pass {
+            Name "DepthNormals"
+            Tags {
+                "LightMode" = "DepthNormals"
+            }
+
+            HLSLPROGRAM
+            #pragma require tessellation
+            #pragma require geometry
+
+            #pragma vertex vert
+            #pragma hull hull
+            #pragma domain domain
+            #pragma fragment frag
+
+            #pragma prefer_hlslcc gles
+            #pragma exclude_renderers d3d11_9x
+            #pragma target 4.6
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            TEXTURE2D(_HeightTex);
+            SAMPLER(sampler_HeightTex);
+
+            TEXTURE2D(_NormalMap);
+            SAMPLER(sampler_NormalMap);
+
+            TEXTURE2D(_MarkersGraphic);
+            SAMPLER(sampler_MarkersGraphic);
+
+            TEXTURE2D(_MarkersPositionData);
+            SAMPLER(sampler_MarkersPositionData);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float _Tess;
+                float _Displacement;
+                float4 _MarkerSettings;
+            CBUFFER_END
+
+            struct Attributes {
+                float4 vertex : POSITION;
+                float4 tangent : TANGENT;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            // 使用INTERNALTESSPOS代替POSITION语意, 其余和Attributes保持一致
+            struct TessCtrlPoint {
+                float4 vertex : INTERNALTESSPOS;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct TessFactors {
+                float edge[3] : SV_TessFactor;
+                float inside : SV_InsideTessFactor;
+            };
+
+            struct Varyings {
+                float4 vertex : SV_POSITION;
+                half3 normal : TEXCOORD2;
+                half3 viewDirWS : TEXCOORD5;
+            };
+
+            // vert只需要原封不动传递数据给tess
+            TessCtrlPoint vert(Attributes i) {
+                TessCtrlPoint o;
+                o.vertex = i.vertex;
+                o.uv = i.uv;
+                o.normal = i.normal;
+                o.color = i.color;
+                return o;
+            }
+
+            TessFactors patch(InputPatch<TessCtrlPoint, 3> i) {
+                TessFactors o;
+                float t = _Tess;
+                o.edge[0] = t;
+                o.edge[1] = t;
+                o.edge[2] = t;
+                o.inside = t;
+                return o;
+            }
+
+            #define CTRL_POINTS 3
+            [domain("tri")]
+            [outputcontrolpoints(CTRL_POINTS)]
+            [outputtopology("triangle_cw")]
+            [partitioning("fractional_even")]
+            [patchconstantfunc("patch")]
+            TessCtrlPoint hull(InputPatch<TessCtrlPoint, CTRL_POINTS> p, uint id : SV_OutputControlPointID) {
+                return p[id];
+            }
+
+            float3 Disp(float3 vertex, float2 uv, float3 normal) {
+                float d = (SAMPLE_TEXTURE2D_LOD(_HeightTex, sampler_HeightTex, uv, 0.0).a - 0.5) * _Displacement;
+                // if its underground we will scaledown maximum depth
+                if (d < 0) {
+                    d *= 0.6;
+                }
+                return vertex + normal * d;
+            }
+
+            Varyings vertAfter(Attributes i) {
+                i.vertex.xyz = Disp(i.vertex.xyz, i.uv, i.normal);
+                Varyings o = (Varyings)0;
+                o.vertex = TransformObjectToHClip(i.vertex.xyz);
+                VertexPositionInputs vertexInput = GetVertexPositionInputs(i.vertex.xyz);
+                VertexNormalInputs normalInput = GetVertexNormalInputs(i.normal, i.tangent);
+                o.normal = half3(normalInput.normalWS);
+                return o;
+            }
+
+            [domain("tri")]
+            Varyings domain(TessFactors f, OutputPatch<TessCtrlPoint, 3> p, float3 uvw : SV_DomainLocation) {
+                Attributes i;
+
+                #define DOMAIN_LERP(prop) i.prop = p[0].prop * uvw.x + p[1].prop * uvw.y + p[2].prop * uvw.z
+                DOMAIN_LERP(vertex);
+                DOMAIN_LERP(uv);
+                DOMAIN_LERP(color);
+                DOMAIN_LERP(normal);
+
+                return vertAfter(i);
+            }
+
+            void frag(Varyings input, out half4 outNormalWS : SV_Target0) {
+                #if defined(_ALPHATEST_ON)
+                    Alpha(SampleAlbedoAlpha(input.uv, TEXTURE2D_ARGS(_BaseMap, sampler_BaseMap)).a, _BaseColor, _Cutoff);
+                #endif
+
+                #if defined(LOD_FADE_CROSSFADE)
+                    LODFadeCrossFade(input.vertex);
+                #endif
+
+                #if defined(_GBUFFER_NORMALS_OCT)
+                    float3 normalWS = normalize(input.normal);
+                    float2 octNormalWS = PackNormalOctQuadEncode(normalWS); // values between [-1, +1], must use fp32 on some platforms
+                    float2 remappedOctNormalWS = saturate(octNormalWS * 0.5 + 0.5); // values between [ 0,  1]
+                    half3 packedNormalWS = PackFloat2To888(remappedOctNormalWS); // values between [ 0,  1]
+                    outNormalWS = half4(packedNormalWS, 0.0);
+                #else
+                    #if defined(_PARALLAXMAP)
+                        half3 viewDirTS = GetViewDirectionTangentSpace(input.tangentWS, input.normal, input.viewDirWS);
+                        ApplyPerPixelDisplacement(viewDirTS, input.uv);
+                    #endif
+
+                    #if defined(_NORMALMAP) || defined(_DETAIL)
+                        float sgn = input.tangentWS.w; // should be either +1 or -1
+                        float3 bitangent = sgn * cross(input.normal.xyz, input.tangentWS.xyz);
+                        float3 normalTS = SampleNormal(input.uv, TEXTURE2D_ARGS(_BumpMap, sampler_BumpMap), _BumpScale);
+
+                        #if defined(_DETAIL)
+                            half detailMask = SAMPLE_TEXTURE2D(_DetailMask, sampler_DetailMask, input.uv).a;
+                            float2 detailUv = input.uv * _DetailAlbedoMap_ST.xy + _DetailAlbedoMap_ST.zw;
+                            normalTS = ApplyDetailNormal(detailUv, normalTS, detailMask);
+                        #endif
+
+                        float3 normalWS = TransformTangentToWorld(normalTS, half3x3(input.tangentWS.xyz, bitangent.xyz, input.normal.xyz));
+                    #else
+                        float3 normalWS = input.normal;
+                    #endif
+
+                    outNormalWS = half4(NormalizeNormalPerPixel(normalWS), 0.0);
+                #endif
+            }
+
             ENDHLSL
         }
     }

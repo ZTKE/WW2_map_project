@@ -152,5 +152,20 @@ Shader "Custom/URP3D/SimpleLit" {
             }
             ENDHLSL
         }
+
+        Pass {
+            Name "DepthNormals"
+            Tags {
+                "LightMode" = "DepthNormals"
+            }
+
+            HLSLPROGRAM
+            #pragma vertex DepthNormalsVertex
+            #pragma fragment DepthNormalsFragment
+
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitInput.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/Shaders/LitDepthNormalsPass.hlsl"
+            ENDHLSL
+        }
     }
 }

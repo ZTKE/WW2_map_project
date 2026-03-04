@@ -41,6 +41,7 @@ float _WaveScale;
 sampler2D _RefractionTex;
 sampler2D _BumpMap;
 sampler2D _CameraDepthTexture;
+sampler2D _NewCameraDepthTexture;
 half4 _WaterTone;
 half4 _WaveSpeed;
 
@@ -91,8 +92,7 @@ half4 frag( v2f i ) : SV_Target
 {    
     //Water depth
     //Get the distance to the camera from the depth buffer for this point
-	float4 cam = tex2Dproj(_CameraDepthTexture, UNITY_PROJ_COORD(i.ref));
-	// cam.rgb = LinearToGammaSpaceExact(cam.rgb);
+	float4 cam = tex2Dproj(_NewCameraDepthTexture, UNITY_PROJ_COORD(i.ref));
     float sceneZ = LinearEyeDepth (cam.r);
 
 	float3 viewDir = UNITY_MATRIX_IT_MV[2].xyz;

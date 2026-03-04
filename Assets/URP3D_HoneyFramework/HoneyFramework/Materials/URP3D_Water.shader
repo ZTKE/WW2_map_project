@@ -10,7 +10,6 @@
 
     SubShader {
         Tags {
-            "WaterMode" = "Refractive"
             "RenderType" = "Transparent"
             "RenderPipeline" = "UniversalPipeline"
         }
@@ -27,8 +26,6 @@
             HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
-            #pragma multi_compile _ _SHADOWS_SOFT
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -59,8 +56,9 @@
             TEXTURE2D(_BumpMap);
             SAMPLER(sampler_BumpMap);
 
-            TEXTURE2D(_CameraDepthTexture);
-            SAMPLER(sampler_CameraDepthTexture);
+            // 从renderer feature中获取base相机的深度图
+            TEXTURE2D(_CopiedDepthTexture);
+            SAMPLER(sampler_CopiedDepthTexture);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _ReflectiveColor_ST;
@@ -87,7 +85,7 @@
 
                 // object space view direction (will normalize per pixel)
                 o.viewDir.xzy = GetObjectSpaceNormalizeViewDir(i.vertex.xyz);
-                o.ref = GetVertexPositionInputs(o.pos.xyz).positionNDC;
+                o.ref = ComputeScreenPos(o.pos);
                 o.worldPos = TransformObjectToWorld(i.vertex.xyz).xyz;
                 return o;
             }
@@ -95,16 +93,13 @@
             half4 frag(Varyings i) : SV_Target {
                 // Water depth
                 // Get the distance to the camera from the depth buffer for this point
-                float2 screenUV = i.ref.xy / i.ref.w;
-                float4 cam = SAMPLE_TEXTURE2D_X(_CameraDepthTexture, sampler_CameraDepthTexture, screenUV);
+                float4 cam = SAMPLE_TEXTURE2D_X(_CopiedDepthTexture, sampler_CopiedDepthTexture, i.ref.xy / i.ref.w);
                 float sceneZ = LinearEyeDepth(cam.r, _ZBufferParams);
-                float4x4 mvMatrixIT = transpose(mul(UNITY_MATRIX_I_M, UNITY_MATRIX_I_V));
-                float3 viewDir = mvMatrixIT[2].xyz;
-                // sceneZ = LinearEyeDepth(tex2D(_CameraDepthTexture, i.ref).r);
+                float3 viewDir = UNITY_MATRIX_IT_MV[2].xyz;
                 float3 cameraDist = i.worldPos - GetCameraPositionWS();
                 float partZ = -dot(viewDir, cameraDist);
                 // If the two are similar, then there is an object intersecting with our object
-                half diff = sceneZ.x - partZ;
+                half diff = sceneZ - partZ;
                 diff = pow(max(0.0, diff), 0.3);
                 half minDepthBorder = 0.32;
                 half midDepth = 0.4;
@@ -141,85 +136,6 @@
                 color.rgb = (sky * 0.25 + _WaterTone * 0.75).rgb;
                 color.a = waterDepth;
                 return color;
-            }
-            ENDHLSL
-        }
-
-        Pass {
-            Name "ShadowCaster"
-            Tags {
-                "LightMode" = "ShadowCaster"
-            }
-
-            ZWrite On
-            ZTest LEqual
-            ColorMask 0
-
-            HLSLPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-
-            struct Attributes {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct Varyings {
-                float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            Varyings vert(Attributes i) {
-                Varyings o;
-                VertexPositionInputs v = GetVertexPositionInputs(i.vertex.xyz);
-                o.vertex = v.positionCS;
-                float3 n = TransformObjectToWorldNormal(i.normal);
-                Light mainLight = GetMainLight();
-                float3 l = mainLight.direction;
-                float3 p = v.positionWS;
-                ApplyShadowBias(p, n, l);
-                o.uv = i.uv;
-                return o;
-            }
-
-            half4 frag(Varyings i) : SV_TARGET {
-                return 0;
-            }
-            ENDHLSL
-        }
-
-        Pass {
-            Name "DepthOnly"
-            Tags {
-                "LightMode" = "DepthOnly"
-            }
-
-            HLSLPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-
-            struct Attributes {
-                float4 vertex : POSITION;
-            };
-
-            struct Varyings {
-                float4 vertex : SV_POSITION;
-            };
-
-            Varyings vert(Attributes i) {
-                Varyings o;
-                o.vertex = TransformObjectToHClip(i.vertex.xyz);
-                return o;
-            }
-
-            half4 frag(Varyings i) : SV_Target {
-                return 0;
             }
             ENDHLSL
         }
