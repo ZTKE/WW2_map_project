@@ -235,7 +235,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return v;
             }
 
-            half3 DrawMarkerLayer(half3 c, Vector3i v, float4 dataType, float4 dataAngle, int layer) {
+            half4 DrawMarkerLayer(half4 c, Vector3i v, float4 dataType, float4 dataAngle, int layer) {
                 int type = round(dataType[layer] * _MarkerSettings.x * _MarkerSettings.y);
                 if (type == 0) {
                     return c;
@@ -259,7 +259,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
 
                 half4 marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
-                return lerp(c, marker.rgb, marker.a);
+                return half4(lerp(c.rgb, marker.rgb, marker.a), c.a);
             }
 
             half4 frag(Varyings i) : SV_TARGET {
@@ -274,10 +274,10 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, dataUV);
                 float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, data2UV);
 
-                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 0); // 1st marker layer
-                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 1); // 2nd marker layer
-                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 2); // 3rd marker layer
-                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 3); // 4th marker layer
+                c = DrawMarkerLayer(c, v, dataType, dataAngle, 0); // 1st marker layer
+                c = DrawMarkerLayer(c, v, dataType, dataAngle, 1); // 2nd marker layer
+                c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
+                c = DrawMarkerLayer(c, v, dataType, dataAngle, 3); // 4th marker layer
 
                 half4 albedo = half4(c.rgb, 1.0);
 
@@ -293,7 +293,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
 
                 return UniversalFragmentPBR(d, s);
             }
-
             ENDHLSL
         }
 
@@ -494,7 +493,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             void frag(Varyings i, out half4 outNormalWS : SV_Target0) {
                 outNormalWS = half4(NormalizeNormalPerPixel(i.normal), 0.0);
             }
-
             ENDHLSL
         }
     }
