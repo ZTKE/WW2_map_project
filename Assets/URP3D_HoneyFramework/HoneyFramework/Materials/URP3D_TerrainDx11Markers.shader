@@ -235,6 +235,33 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return v;
             }
 
+            half3 DrawMarkerLayer(half3 c, Vector3i v, float4 dataType, float4 dataAngle, int layer) {
+                int type = round(dataType[layer] * _MarkerSettings.x * _MarkerSettings.y);
+                if (type == 0) {
+                    return c;
+                }
+                float2 markerPoint = float2(v.uv.x, v.uv.y) - float2(0.5, 0.5);
+                // Short way of 2d rotation matrix
+                float angle = TWO_PI * dataAngle[layer];
+                float cosRot = cos(angle);
+                float sinRot = sin(angle);
+                float2 singleMarkerUV = float2(markerPoint.x * cosRot - markerPoint.y * sinRot,
+                                               markerPoint.x * sinRot + markerPoint.y * cosRot);
+
+                // Index of the type in atlas column and row
+                int typeX = fmod(type, _MarkerSettings.x);
+                int typeY = floor(_MarkerSettings.y - (type + 0.01) / _MarkerSettings.x);
+
+                float2 atlasMarkerUV = singleMarkerUV + float2(0.5, 0.5) + float2(typeX, typeY);
+
+                // make atlas UV to be within 0-1
+                atlasMarkerUV.x = atlasMarkerUV.x / _MarkerSettings.x;
+                atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
+
+                half4 marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
+                return lerp(c, marker.rgb, marker.a);
+            }
+
             half4 frag(Varyings i) : SV_TARGET {
                 half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
                 float dataResolution = _MarkerSettings.z;
@@ -244,113 +271,13 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float trueDataResolution = dataSize * dataResolution;
                 float2 dataUV = float2((v.x * dataSize + 0.5) / trueDataResolution, (v.y * dataSize + 0.5) / trueDataResolution);
                 float2 data2UV = dataUV + float2(1.0 / trueDataResolution, 0);
-                float4 data = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, dataUV);
-                float4 data2 = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, data2UV);
-                float xCoord;
-                float yCoord;
-                float2 markerUV;
-                half4 marker;
-                float2 markerCorner;
+                float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, dataUV);
+                float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, data2UV);
 
-                // 1st marker layer
-                int type = round(data.r * _MarkerSettings.x * _MarkerSettings.y);
-                if (type != 0) {
-                    float2 markerPoint = float2(v.uv.x, v.uv.y) - float2(0.5, 0.5);
-                    // Short way of 2d rotation matrix
-                    float angle = TWO_PI * data2.r;
-                    float cosRot = cos(angle);
-                    float sinRot = sin(angle);
-                    float2 singleMarkerUV = float2(markerPoint.x * cosRot - markerPoint.y * sinRot,
-                                                   markerPoint.y * cosRot + markerPoint.x * sinRot);
-
-                    // Index of the type in atlas column and row
-                    int typeX = fmod(type, _MarkerSettings.x);
-                    int typeY = floor(_MarkerSettings.y - (type + 0.01) / _MarkerSettings.x);
-
-                    float2 atlasMarkerUV = singleMarkerUV + float2(0.5, 0.5) + float2(typeX, typeY);
-
-                    // make atlas UV to be within 0-1
-                    atlasMarkerUV.x = atlasMarkerUV.x / _MarkerSettings.x;
-                    atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
-
-                    marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
-                    c.rgb = c.rgb * (1 - marker.a) + marker.rgb * (marker.a);
-                }
-
-                // 2nd marker layer
-                type = round(data.g * _MarkerSettings.x * _MarkerSettings.y);
-                if (type != 0) {
-                    float2 markerPoint = float2(v.uv.x, v.uv.y) - float2(0.5, 0.5);
-                    // Short way of 2d rotation matrix
-                    float angle = TWO_PI * data2.g;
-                    float cosRot = cos(angle);
-                    float sinRot = sin(angle);
-                    float2 singleMarkerUV = float2(markerPoint.x * cosRot - markerPoint.y * sinRot,
-                                                   markerPoint.y * cosRot + markerPoint.x * sinRot);
-
-                    // Index of the type in atlas column and row
-                    int typeX = fmod(type, _MarkerSettings.x);
-                    int typeY = floor(_MarkerSettings.y - (type + 0.01) / _MarkerSettings.x);
-
-                    float2 atlasMarkerUV = singleMarkerUV + float2(0.5, 0.5) + float2(typeX, typeY);
-
-                    // make atlas UV to be within 0-1
-                    atlasMarkerUV.x = atlasMarkerUV.x / _MarkerSettings.x;
-                    atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
-
-                    marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
-                    c.rgb = c.rgb * (1 - marker.a) + marker.rgb * (marker.a);
-                }
-
-                // 3rd marker layer
-                type = round(data.b * _MarkerSettings.x * _MarkerSettings.y);
-                if (type != 0) {
-                    float2 markerPoint = float2(v.uv.x, v.uv.y) - float2(0.5, 0.5);
-                    // Short way of 2d rotation matrix
-                    float angle = TWO_PI * data2.b;
-                    float cosRot = cos(angle);
-                    float sinRot = sin(angle);
-                    float2 singleMarkerUV = float2(markerPoint.x * cosRot - markerPoint.y * sinRot,
-                                                   markerPoint.y * cosRot + markerPoint.x * sinRot);
-
-                    // Index of the type in atlas column and row
-                    int typeX = fmod(type, _MarkerSettings.x);
-                    int typeY = floor(_MarkerSettings.y - (type + 0.01) / _MarkerSettings.x);
-
-                    float2 atlasMarkerUV = singleMarkerUV + float2(0.5, 0.5) + float2(typeX, typeY);
-
-                    // make atlas UV to be within 0-1
-                    atlasMarkerUV.x = atlasMarkerUV.x / _MarkerSettings.x;
-                    atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
-
-                    marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
-                    c.rgb = c.rgb * (1 - marker.a) + marker.rgb * (marker.a);
-                }
-
-                // 4th marker layer
-                type = round(data.a * _MarkerSettings.x * _MarkerSettings.y);
-                if (type != 0) {
-                    float2 markerPoint = float2(v.uv.x, v.uv.y) - float2(0.5, 0.5);
-                    // Short way of 2d rotation matrix
-                    float angle = TWO_PI * data2.a;
-                    float cosRot = cos(angle);
-                    float sinRot = sin(angle);
-                    float2 singleMarkerUV = float2(markerPoint.x * cosRot - markerPoint.y * sinRot,
-                                                   markerPoint.y * cosRot + markerPoint.x * sinRot);
-
-                    // Index of the type in atlas column and row
-                    int typeX = fmod(type, _MarkerSettings.x);
-                    int typeY = floor(_MarkerSettings.y - (type + 0.01) / _MarkerSettings.x);
-
-                    float2 atlasMarkerUV = singleMarkerUV + float2(0.5, 0.5) + float2(typeX, typeY);
-
-                    // make atlas UV to be within 0-1
-                    atlasMarkerUV.x = atlasMarkerUV.x / _MarkerSettings.x;
-                    atlasMarkerUV.y = atlasMarkerUV.y / _MarkerSettings.y;
-
-                    marker = SAMPLE_TEXTURE2D(_MarkersGraphic, sampler_MarkersGraphic, atlasMarkerUV);
-                    c.rgb = c.rgb * (1 - marker.a) + marker.rgb * (marker.a);
-                }
+                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 0); // 1st marker layer
+                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 1); // 2nd marker layer
+                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 2); // 3rd marker layer
+                c.rgb = DrawMarkerLayer(c.rgb, v, dataType, dataAngle, 3); // 4th marker layer
 
                 half4 albedo = half4(c.rgb, 1.0);
 
