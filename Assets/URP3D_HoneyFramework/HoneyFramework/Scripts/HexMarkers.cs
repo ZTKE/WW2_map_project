@@ -43,7 +43,9 @@ namespace HoneyFramework {
         static int dataSize = 2;
         public Texture2D markersTexture;
         Texture2D hexData;
+        Texture2D hexDataForCountries;
         Color32[] colorData;
+        Color32[] colorDataForCountries;
         bool dirty;
 
         void Awake() {
@@ -55,6 +57,15 @@ namespace HoneyFramework {
             colorData = new Color32[textureMapSize * textureMapSize * dataSize * dataSize];
             hexData.SetPixels32(colorData);
             hexData.Apply();
+
+            // 新增国家颜色数据贴图
+            hexDataForCountries = new Texture2D(textureMapSize, textureMapSize, TextureFormat.ARGB32, false, false);
+            hexDataForCountries.filterMode = FilterMode.Point;
+
+            colorDataForCountries = new Color32[textureMapSize * textureMapSize];
+            hexDataForCountries.SetPixels32(colorDataForCountries);
+            hexDataForCountries.Apply();
+
             dirty = false;
         }
 
@@ -72,6 +83,10 @@ namespace HoneyFramework {
         /// <returns></returns>
         static public Texture2D GetHexDataTexture() {
             return instance.hexData;
+        }
+
+        static public Texture2D GetHexDataForCountriesTexture() {
+            return instance.hexDataForCountries;
         }
 
         static public Vector4 GetMarkersSettings() {
@@ -123,6 +138,12 @@ namespace HoneyFramework {
                     instance.SetMarkerType(position, type, Layer.Movement, 0f);
                     break;
                 }
+            }
+        }
+
+        static public void SetCountryColor(Vector3i position, Color color) {
+            if (instance != null) {
+                instance.SetCountryColorBase(position, color);
             }
         }
 
@@ -211,10 +232,23 @@ namespace HoneyFramework {
             dirty = true;
         }
 
+        public void SetCountryColorBase(Vector3i position, Color color) {
+            // convert position to texture space index
+            int x = position.x;
+            int y = position.y;
+
+            if (x < 0) { x = textureMapSize + x; }
+            if (y < 0) { y = textureMapSize + y; }
+
+            hexDataForCountries.SetPixel(x, y, color);
+
+            dirty = true;
+        }
+
         void LateUpdate() {
             if (dirty) {
-                // hexData.SetPixels32(colorData);
                 hexData.Apply();
+                hexDataForCountries.Apply();
 
                 foreach (KeyValuePair<Vector2i, Chunk> pair in World.instance.chunks) {
                     pair.Value.SetMarkerMaterials();

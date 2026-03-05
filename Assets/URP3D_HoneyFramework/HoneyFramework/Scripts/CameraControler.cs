@@ -18,28 +18,65 @@ namespace HoneyFramework {
         }
 
         // 测试代码, 检测原版插件的标记功能
-        [SerializeField] private Vector3i testPos;
-        [SerializeField] private HexMarkers.MarkerType doTestType;
-        [SerializeField] private bool doTest;
-        [SerializeField] private HexMarkers.Layer clearTestLayer;
-        [SerializeField] private bool clearTest;
-        private void DoTest() {
-            if (doTest == false) {
+        [Header("测试代码, 勾选\"Do Test ...\"进行测试")]
+        [SerializeField] private int testX;
+        [SerializeField] private int testY;
+        [SerializeField] private int testZ;
+        [SerializeField] private HexMarkers.MarkerType testType;
+        [SerializeField] private bool doTestType;
+        [SerializeField] private HexMarkers.Layer testClearLayer;
+        [SerializeField] private bool doTestClearLayer;
+        [Header("右键地图, 或者勾选\"Do Test Country Color\"进行测试")]
+        [SerializeField] private Color testCountryColor = Color.red;
+        [SerializeField] private bool doTestCountryColor;
+
+        private void DoTestMarker() {
+            if (doTestType == false) {
                 return;
             }
-            doTest = false;
+            doTestType = false;
             if (World.GetInstance() != null && World.GetInstance().status == World.Status.Ready) {
-                HexMarkers.SetMarkerType(testPos, doTestType);
+                HexMarkers.SetMarkerType(new Vector3i(testX, testY, testZ), testType);
             }
         }
 
-        private void ClearTest() {
-            if (clearTest == false) {
+        private void ClearTestMarker() {
+            if (doTestClearLayer == false) {
                 return;
             }
-            clearTest = false;
+            doTestClearLayer = false;
             if (World.GetInstance() != null && World.GetInstance().status == World.Status.Ready) {
-                HexMarkers.ClearMarkerLayer(testPos, clearTestLayer);
+                HexMarkers.ClearMarkerLayer(new Vector3i(testX, testY, testZ), testClearLayer);
+            }
+        }
+
+        private void DoTestCountryColor() {
+            if (World.GetInstance() != null && Input.GetMouseButtonDown(1) && World.GetInstance().status == World.Status.Ready) {
+                var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                float ent = 100.0f;
+                if (plane.Raycast(ray, out ent)) {
+                    Vector3 hitPoint = ray.GetPoint(ent);
+                    hitPoint -= World.instance.transform.position;
+
+                    Vector2 hexWorldPosition = VectorUtils.Vector3To2D(hitPoint);
+                    Vector3i hexPos = HexCoordinates.GetHexCoordAt(hexWorldPosition);
+                    Debug.Log("Selected hex" + hexPos);
+
+                    if (GameManager.instance.formations.Count > 0) {
+                        GameManager.instance.formations[GameManager.instance.formations.Count - 1].GoTo(hexPos);
+                    }
+                    HexMarkers.SetCountryColor(hexPos, testCountryColor);
+                } else {
+                    Debug.LogWarning("click outside world? e.g. horizontal");
+                }
+            }
+
+            if (doTestCountryColor == false) {
+                return;
+            }
+            doTestCountryColor = false;
+            if (World.GetInstance() != null && World.GetInstance().status == World.Status.Ready) {
+                HexMarkers.SetCountryColor(new Vector3i(testX, testY, testZ), testCountryColor);
             }
         }
 
@@ -121,8 +158,9 @@ namespace HoneyFramework {
             }
 
             // 测试代码
-            DoTest();
-            ClearTest();
+            DoTestMarker();
+            ClearTestMarker();
+            DoTestCountryColor();
         }
 
         void OnGUI() {

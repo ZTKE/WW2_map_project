@@ -9,13 +9,15 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
         _Displacement ("Displacement", Range(0, 3.0)) = 1.5
         _SpecColor ("Spec color", color) = (0.5, 0.5, 0.5, 0.5)
         _MarkersGraphic ("Markers Graphic", 2D) = "black" {}
+        // 标记RT宽度和高度为_MarkerSettings.z * _MarkerSettings.w, 也就是说这张图默认是128*128尺寸
         _MarkersPositionData ("Markers Position Data", 2D) = "black" {}
         // marker settings: (marker graphic count width,
         //                   marker graphic count height,
         //                   marker data width hex count, <- expected to be square for height
         //                   marker hex data size, <- number of following pixels of data for each hex
-        _MarkerSettings ("Marker Settings", vector) = (8, 8, 64, 2)
-        _CountryColorData ("Country Color Data", 2D) = "clear" {}
+        _MarkerSettings ("Marker Settings", Vector) = (8, 8, 64, 2)
+        // 国家颜色数据不需要_MarkerSettings.w, 也就是默认是64*64的RT贴图
+        _CountriesColorData ("Countries Color Data", 2D) = "clear" {}
     }
 
     SubShader {
@@ -67,6 +69,9 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
 
             TEXTURE2D(_MarkersPositionData);
             SAMPLER(sampler_MarkersPositionData);
+
+            TEXTURE2D(_CountriesColorData);
+            SAMPLER(sampler_CountriesColorData);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
@@ -235,6 +240,46 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return v;
             }
 
+            #define USE_BLUR
+            half4 DrawCountriesLayer(half4 c, float2 pos) {
+                float dataResolution = _MarkerSettings.z;
+                Vector3i v = GetHexCoord(pos);
+                float2 uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
+                float4 dataCountry = float4(0.0, 0.0, 0.0, 0.0);
+                float4 centerColor = SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
+
+                #ifdef USE_BLUR
+                    // https://blog.csdn.net/baidu_38634017/article/details/97763714
+                    float core[5][5] = {
+                        {1,  4,  7,  4, 1},
+                        {4, 16, 26, 16, 4},
+                        {7, 26, 41, 26, 7},
+                        {4, 16, 26, 16, 4},
+                        {1,  4,  7,  4, 1}
+                    };
+                    float sum = 273;
+                    float off = 0.03;
+                    for (float x = -2; x <= 2; ++x) {
+                        for (float y = -2; y <= 2; ++y) {
+                            v = GetHexCoord(pos + float2(x, y) * off);
+                            uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
+                            dataCountry += SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv) * core[x + 2][y + 2];
+                        }
+                    }
+                    dataCountry /= sum;
+                    dataCountry.rgb = centerColor.rgb;
+                    if (centerColor.a > 0.01) {
+                        dataCountry.a = 1.0 - dataCountry.a;
+                        dataCountry.a = saturate(10.0 * dataCountry.a + 0.25);
+                        dataCountry.a *= lerp(0.5, 1.0, (sin(_Time.y * PI) + 1.0) * 0.5);
+                    }
+                #else
+                    dataCountry = centerColor;
+                #endif
+
+                return half4(lerp(c.rgb, dataCountry.rgb, dataCountry.a), c.a);
+            }
+
             half4 DrawMarkerLayer(half4 c, Vector3i v, float4 dataType, float4 dataAngle, int layer) {
                 int type = round(dataType[layer] * _MarkerSettings.x * _MarkerSettings.y);
                 if (type == 0) {
@@ -269,11 +314,12 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float2 pos = float2(i.posWS.x, i.posWS.z);
                 Vector3i v = GetHexCoord(pos);
                 float trueDataResolution = dataSize * dataResolution;
-                float2 dataUV = float2((v.x * dataSize + 0.5) / trueDataResolution, (v.y * dataSize + 0.5) / trueDataResolution);
-                float2 data2UV = dataUV + float2(1.0 / trueDataResolution, 0);
-                float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, dataUV);
-                float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, data2UV);
+                float2 uvType = float2((v.x * dataSize + 0.5) / trueDataResolution, (v.y * dataSize + 0.5) / trueDataResolution);
+                float2 uvAngle = uvType + float2(1.0 / trueDataResolution, 0);
+                float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvType);
+                float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvAngle);
 
+                c = DrawCountriesLayer(c, pos);
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 0); // 1st marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 1); // 2nd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
