@@ -4,30 +4,26 @@ using System.Collections.Generic;
 using System.Linq;
 using Pathfinding;
 
-namespace HoneyFramework
-{
+namespace HoneyFramework {
     /*
      * System which works with advanced chunk rendering shaders to draw hex markers and selectors
      */
-    public class HexMarkers : MonoBehaviour
-    {
-        public enum Layer
-        {
-            Borders, 
-            Friendly, 
+    public class HexMarkers : MonoBehaviour {
+        public enum Layer {
+            Borders,
+            Friendly,
             Movement,
             Extra,
         }
 
-        public enum MarkerType
-        {
-            None     = 0,
+        public enum MarkerType {
+            None = 0,
             Friendly = 1,  //Layer Friendly
-            Enemy    = 2,  //Layer Friendly
+            Enemy = 2,  //Layer Friendly
             Movement = 3,  //Layer Movement   
 
             HalfRoad = 8,
-        
+
             //its up to you to name markers you want to use, 
             //its important to define texture size though
             MAX = 64
@@ -45,13 +41,12 @@ namespace HoneyFramework
         float markerTypeCount = (float)MarkerType.MAX;
         static int textureMapSize = 64;
         static int dataSize = 2;
-        public Texture2D markersTexture;        
+        public Texture2D markersTexture;
         Texture2D hexData;
         Color32[] colorData;
         bool dirty;
 
-        void Awake()
-        {
+        void Awake() {
             instance = this;
 
             hexData = new Texture2D(textureMapSize * dataSize, textureMapSize * dataSize, TextureFormat.ARGB32, false, false);
@@ -67,8 +62,7 @@ namespace HoneyFramework
         /// Markers contain textures which are used to color selected hexes
         /// </summary>
         /// <returns></returns>
-        static public Texture2D GetMarkersTexture()
-        {
+        static public Texture2D GetMarkersTexture() {
             return instance.markersTexture;
         }
 
@@ -76,13 +70,11 @@ namespace HoneyFramework
         /// Data which defines which hexes should be marked by the system
         /// </summary>
         /// <returns></returns>
-        static public Texture2D GetHexDataTexture()
-        {
+        static public Texture2D GetHexDataTexture() {
             return instance.hexData;
         }
 
-        static public Vector4 GetMarkersSettings()
-        {
+        static public Vector4 GetMarkersSettings() {
             //x - horizontal texture count on marker atlas
             //y - vertical texture count on marker atlas
             //z - width of hex data texture without counting data size
@@ -94,10 +86,8 @@ namespace HoneyFramework
         /// Marks the Texture as dirty so its updated at the next render
         /// </summary>
         /// <returns></returns>
-        static public void MarkAsDirtyDataTexture()
-        {
-            if (instance != null)
-            {
+        static public void MarkAsDirtyDataTexture() {
+            if (instance != null) {
                 instance.dirty = true;
             }
         }
@@ -106,10 +96,8 @@ namespace HoneyFramework
         /// Clears All markers
         /// </summary>
         /// <returns></returns>
-        static public void ClearAllMarkers()
-        {
-            if (instance != null)
-            {
+        static public void ClearAllMarkers() {
+            if (instance != null) {
                 for (int i = 0; i < instance.colorData.Length; i++)
                     instance.colorData[i] = Color.black;
                 instance.hexData.SetPixels32(instance.colorData);
@@ -123,55 +111,45 @@ namespace HoneyFramework
         /// <param name="position"></param>
         /// <param name="type">0 to 8 value which defines which hex to use. Note that 0 is "use nothing" type, indexes start at 1 to 8 including</param>
         /// <returns></returns>
-        static public void SetMarkerType(Vector3i position, MarkerType type)
-        {
-            if (instance != null)
-            {
-                switch (type)
-                {
-                    case MarkerType.Friendly:
-                    case MarkerType.Enemy:
-                        instance.SetMarkerType(position, type, Layer.Friendly, 0f);
-                        break;
+        static public void SetMarkerType(Vector3i position, MarkerType type) {
+            if (instance != null) {
+                switch (type) {
+                case MarkerType.Friendly:
+                case MarkerType.Enemy:
+                    instance.SetMarkerType(position, type, Layer.Friendly, 0f);
+                    break;
 
-                    case MarkerType.Movement:
-                        instance.SetMarkerType(position, type, Layer.Movement, 0f);
-                        break;
-                }   
+                case MarkerType.Movement:
+                    instance.SetMarkerType(position, type, Layer.Movement, 0f);
+                    break;
+                }
             }
         }
 
-        static public void SetMarkerType(Vector3i position, int type, Layer layer, float rotation)
-        {
-            if (instance != null)
-            {
+        static public void SetMarkerType(Vector3i position, int type, Layer layer, float rotation) {
+            if (instance != null) {
                 instance.SetMarkerType(position, layer, rotation, type);
             }
         }
 
-        static public void ClearMarkerLayer(Vector3i position, Layer layer)
-        {
-            if (instance != null)
-            {                
+        static public void ClearMarkerLayer(Vector3i position, Layer layer) {
+            if (instance != null) {
                 instance.SetMarkerType(position, MarkerType.None, layer, 0f);
             }
         }
 
-        static public void ClearMarkerType(Vector3i position, MarkerType type)
-        {
-            if (instance != null)
-            {                
-                switch (type)
-                {                    
-                    case MarkerType.Friendly:
-                    case MarkerType.Enemy:
-                        instance.SetMarkerType(position, MarkerType.None, Layer.Friendly, 0f);
-                        break;
+        static public void ClearMarkerType(Vector3i position, MarkerType type) {
+            if (instance != null) {
+                switch (type) {
+                case MarkerType.Friendly:
+                case MarkerType.Enemy:
+                    instance.SetMarkerType(position, MarkerType.None, Layer.Friendly, 0f);
+                    break;
 
-                    case MarkerType.Movement:
-                        instance.SetMarkerType(position, MarkerType.None, Layer.Movement, 0f);
-                        break;
-                }                
+                case MarkerType.Movement:
+                    instance.SetMarkerType(position, MarkerType.None, Layer.Movement, 0f);
+                    break;
+                }
             }
         }
 
@@ -183,8 +161,7 @@ namespace HoneyFramework
         /// <param name="layer">layer to place marker on</param>
         /// <param name="markerRotation">Radians rotation of the texture</param>
         /// <returns></returns>
-        public void SetMarkerType(Vector3i position, MarkerType type, Layer layer, float markerRotation)
-        {
+        public void SetMarkerType(Vector3i position, MarkerType type, Layer layer, float markerRotation) {
             SetMarkerType(position, layer, markerRotation, (int)type);
         }
 
@@ -196,8 +173,7 @@ namespace HoneyFramework
         /// <param name="markerRotation"> 0-1 value </param>
         /// <param name="iType"></param>
         /// <returns></returns>
-        public void SetMarkerType(Vector3i position, Layer layer, float markerRotation, int iType)
-        {           
+        public void SetMarkerType(Vector3i position, Layer layer, float markerRotation, int iType) {
             //convert position to texture space index
             int x = position.x * dataSize;
             int y = position.y * dataSize;
@@ -205,51 +181,46 @@ namespace HoneyFramework
             if (x < 0) { x = textureMapSize * dataSize + x; }
             if (y < 0) { y = textureMapSize * dataSize + y; }
 
-            Color c = hexData.GetPixel(x, y);            
+            Color c = hexData.GetPixel(x, y);
             Color rotations = hexData.GetPixel(x + 1, y);
 
-            switch (layer)
-            {
-                case Layer.Borders:
-                    c.r = (float)iType / markerTypeCount;  
-                    rotations.r = markerRotation;
-                    break;
+            switch (layer) {
+            case Layer.Borders:
+                c.r = (float)iType / markerTypeCount;
+                rotations.r = markerRotation;
+                break;
 
-                case Layer.Friendly:
-                    c.g = (float)iType / markerTypeCount;
-                    rotations.g = markerRotation;
-                    break;
+            case Layer.Friendly:
+                c.g = (float)iType / markerTypeCount;
+                rotations.g = markerRotation;
+                break;
 
-                case Layer.Movement:
-                    c.b = (float)iType / markerTypeCount;
-                    rotations.b = markerRotation;
-                    break;
+            case Layer.Movement:
+                c.b = (float)iType / markerTypeCount;
+                rotations.b = markerRotation;
+                break;
 
-                case Layer.Extra:
-                    c.a = (float)iType / markerTypeCount;
-                    rotations.a = markerRotation;
-                    break;
-            }            
+            case Layer.Extra:
+                c.a = (float)iType / markerTypeCount;
+                rotations.a = markerRotation;
+                break;
+            }
             hexData.SetPixel(x, y, c);
             hexData.SetPixel(x + 1, y, rotations);
-            
-            dirty = true;            
-        }		
 
-        void LateUpdate()
-        {
-            if (dirty)
-            {
-               // hexData.SetPixels32(colorData);
+            dirty = true;
+        }
+
+        void LateUpdate() {
+            if (dirty) {
+                // hexData.SetPixels32(colorData);
                 hexData.Apply();
 
-                foreach (KeyValuePair<Vector2i, Chunk> pair in World.instance.chunks)
-                {
+                foreach (KeyValuePair<Vector2i, Chunk> pair in World.instance.chunks) {
                     pair.Value.SetMarkerMaterials();
                 }
                 dirty = false;
             }
         }
-
     }
 }

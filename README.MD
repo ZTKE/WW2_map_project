@@ -45,8 +45,10 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 按优先级从高到低排列：
 
 - 国家区域高亮描边（需要花点时间）
-- 水渲染优化，目前没有和主相机画面的深度融合得很好
+  - 需要理解HexMarkers脚本，然后写一个类似的脚本来实现用标记贴图渲染区域的功能
+
 - Gamma空间修改为线性空间，需要调整烘焙代码
+
 
 ## 三、Change Log
 
@@ -59,3 +61,23 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 
 - 完成Built-in到URP的转换，包括修改Shader和修改相机堆叠逻辑
 - 确认了渲染差异问题是颜色空间导致的，目前暂时先用Gamma空间
+
+---
+
+## 附录一、Honey Framework标记贴图原理
+
+在Shader中，有3个与标记有关的属性`_MarkersGraphic`，`_MarkersPositionData`，`_MarkerSettings`
+
+首先看`_MarkerSettings`，默认值为`(8, 8, 64, 2)`，其`xyzw`分别的含义为：
+
+- `x`：marker graphic count width
+  - `_MarkersGraphic`标记贴图表横向个数
+- `y`：marker graphic count height
+  - `_MarkersGraphic`标记贴图表纵向个数
+- `z`：marker data width hex count, <- expected to be square for height
+  - `_MarkersPositionData`标记数据RT贴图像素宽度（默认高度等于宽度），这张RT将记录整个世界地图的标记数据，是所有区块共享的数据，其像素坐标对应了六边形坐标的`x`和`y`，如果六边形坐标为负数，则反向查找坐标（见函数`HexMarkers.SetMarkerType(...)`）
+  - **也就是说，地图格子数量有多少，这张数据图就应该扩展到足够大的尺寸才行**
+- `w`：marker hex data size, <- number of following pixels of data for each hex
+  - `_MarkersPositionData`标记数据RT贴图像素宽度乘倍，例如原先是记录64×64的地图坐标数据，现在每个地块需要标记的种类比较多，需要扩展到128×128，每2个像素点记录一个坐标数据
+  - **也就是说，如果地块标记的种类越多，这张数据图就应该相应扩展到足够大的乘倍才行**
+

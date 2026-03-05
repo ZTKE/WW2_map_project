@@ -4,15 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using Pathfinding;
 
-namespace HoneyFramework
-{
+namespace HoneyFramework {
     /*
      * Simple system for temporary roads. Note that it does not store them for saves. 
      * If you want to store road data with hexes it could be more permanent, some of the users my want to use this more dynamic and for this purpose 
      * class road was created.
      */
-    public class Roads
-    {
+    public class Roads {
         static private Roads instance;
         static private int offsetToRoadsInMarkerAtlass = 8;
 
@@ -48,7 +46,7 @@ namespace HoneyFramework
             new bool[] {true, true, false, false, true, true},
             new bool[] {true, false, true, true, true, false},
             new bool[] {true, false, true, true, false, true},
-            
+
             new bool[] {true, false, true, false, true, true},
             new bool[] {true, false, false, true, true, true},
             new bool[] {true, true, true, true, true, false},
@@ -69,12 +67,10 @@ namespace HoneyFramework
             new Vector3i(1, -1, 0)  //down - right
         };
 
-        private Roads() {}
-        
-        static public Roads GetInstance()
-        {
-            if (instance == null)
-            {
+        private Roads() { }
+
+        static public Roads GetInstance() {
+            if (instance == null) {
                 instance = new Roads();
             }
             return instance;
@@ -86,8 +82,7 @@ namespace HoneyFramework
         /// <param name="position"></param>
         /// <param name="exists"></param>
         /// <returns></returns>
-        static public void SetRoad(Vector3i position, bool exists)
-        {
+        static public void SetRoad(Vector3i position, bool exists) {
             GetInstance().SetRoadAt(position, exists);
         }
 
@@ -96,8 +91,7 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="position"></param>
         /// <returns></returns>
-        static public void SwitchRoadAt(Vector3i position)
-        {
+        static public void SwitchRoadAt(Vector3i position) {
             GetInstance().SetRoadAt(position, !GetInstance().roadLocations.Contains(position));
         }
 
@@ -107,16 +101,12 @@ namespace HoneyFramework
         /// <param name="position"></param>
         /// <param name="exists"></param>
         /// <returns></returns>
-        public void SetRoadAt(Vector3i position, bool exists)
-        {
+        public void SetRoadAt(Vector3i position, bool exists) {
             if (roadLocations.Contains(position) == exists) return;
 
-            if (exists == false)
-            {
-                roadLocations.Remove(position);                
-            }
-            else
-            {
+            if (exists == false) {
+                roadLocations.Remove(position);
+            } else {
                 roadLocations.Add(position);
             }
 
@@ -128,12 +118,9 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="locations"></param>
         /// <returns></returns>
-        public void UpdateArea(List<Vector3i> locations)
-        {
-            foreach(Vector3i pos in locations)
-            {
-                if (World.GetInstance().hexes.ContainsKey(pos))
-                {
+        public void UpdateArea(List<Vector3i> locations) {
+            foreach (Vector3i pos in locations) {
+                if (World.GetInstance().hexes.ContainsKey(pos)) {
                     UpdateMarkerAt(pos, roadLocations.Contains(pos));
                 }
             }
@@ -145,52 +132,40 @@ namespace HoneyFramework
         /// <param name="position"></param>
         /// <param name="noRoad"></param>
         /// <returns></returns>
-        public void UpdateMarkerAt(Vector3i position, bool haveRoad)
-        {
-            if (!haveRoad)
-            {
+        public void UpdateMarkerAt(Vector3i position, bool haveRoad) {
+            if (!haveRoad) {
                 HexMarkers.ClearMarkerLayer(position, HexMarkers.Layer.Borders);
                 return;
             }
 
             int startDirection = -1;
             List<bool[]> bestLayouts = new List<bool[]>();
-            for(int i=0; i<directions.Length; i++)
-            {
+            for (int i = 0; i < directions.Length; i++) {
                 bool isAt = roadLocations.Contains(position + directions[i]);
                 if (!isAt && startDirection == -1) continue;
 
-                if (startDirection == -1)
-                {
-                    startDirection = i;                    
-                }
-                else if (bestLayouts.Count == 0)
-                {
+                if (startDirection == -1) {
+                    startDirection = i;
+                } else if (bestLayouts.Count == 0) {
                     //find layouts which exits in default place and have second exit with offset according to index difference
                     int secondExit = i - startDirection;
                     bestLayouts = roadLayouts.FindAll(o => o[secondExit] == isAt);
-                }
-                else
-                {
+                } else {
                     int secondExit = i - startDirection;
                     bestLayouts = bestLayouts.FindAll(o => o[secondExit] == isAt);
                 }
             }
 
             //best count is 0 if no neighbours have road
-            if (bestLayouts.Count == 0 )
-            {
-                if (startDirection == -1)
-                {
+            if (bestLayouts.Count == 0) {
+                if (startDirection == -1) {
                     HexMarkers.SetMarkerType(position, offsetToRoadsInMarkerAtlass, HexMarkers.Layer.Borders, 0f);
-                }
-                else
-                {
+                } else {
                     HexMarkers.SetMarkerType(position, offsetToRoadsInMarkerAtlass, HexMarkers.Layer.Borders, HexMarkers.directionZeroOneScale[startDirection]);
                 }
                 return;
             }
-            
+
             //Note that all roads with fewer exits are earlier in the list and those with the same number of exits but then have them "earlier on the list" are before the other as well
             //this way first on our filtered list layout is the one which firs our needs best without extra filtering afterwards.
 

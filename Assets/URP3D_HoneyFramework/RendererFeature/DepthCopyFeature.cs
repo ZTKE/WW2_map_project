@@ -20,7 +20,8 @@ public class DepthCopyFeature : ScriptableRendererFeature {
     private class DepthCopyPass : ScriptableRenderPass {
         private RTHandle depthSource;
         private RTHandle depthCopyHandle;
-        private static readonly int TEX_NAME = Shader.PropertyToID("_CopiedDepthTexture");
+        private const string TEX_NAME = "_CopiedDepthTexture";
+        private static readonly int TEX_ID = Shader.PropertyToID(TEX_NAME);
 
         public DepthCopyPass() {
             renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
@@ -41,7 +42,7 @@ public class DepthCopyFeature : ScriptableRendererFeature {
                 descriptor,
                 FilterMode.Point,
                 TextureWrapMode.Clamp,
-                name: "_CopiedDepthTexture"
+                name: TEX_NAME
             );
 
             ConfigureTarget(depthCopyHandle);
@@ -53,7 +54,7 @@ public class DepthCopyFeature : ScriptableRendererFeature {
             CommandBuffer cmd = CommandBufferPool.Get(CMD_NAME);
             using (new ProfilingScope(cmd, new ProfilingSampler(CMD_NAME))) {
                 Blitter.BlitCameraTexture(cmd, depthSource, depthCopyHandle);
-                cmd.SetGlobalTexture(TEX_NAME, depthCopyHandle);
+                cmd.SetGlobalTexture(TEX_ID, depthCopyHandle);
             }
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
