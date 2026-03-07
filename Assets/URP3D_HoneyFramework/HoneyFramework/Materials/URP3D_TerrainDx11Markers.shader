@@ -5,9 +5,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
         _Tess ("Tessellation", Range(1, 32)) = 4
         _MainTex ("Base (RGB)", 2D) = "white" {}
         _HeightTex ("Height Texture", 2D) = "gray" {}
-        _NormalMap ("Normalmap", 2D) = "bump" {}
         _Displacement ("Displacement", Range(0, 3.0)) = 1.5
-        _SpecColor ("Spec color", color) = (0.5, 0.5, 0.5, 0.5)
         _MarkersGraphic ("Markers Graphic", 2D) = "black" {}
         // 标记RT宽度和高度为_MarkerSettings.z * _MarkerSettings.w, 也就是说这张图默认是128*128尺寸
         _MarkersPositionData ("Markers Position Data", 2D) = "black" {}
@@ -18,6 +16,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
         _MarkerSettings ("Marker Settings", Vector) = (8, 8, 64, 2)
         // 国家颜色数据不需要_MarkerSettings.w, 也就是默认是64*64的RT贴图
         _CountriesColorData ("Countries Color Data", 2D) = "clear" {}
+        _BakedCountriesColor ("Baked Countries Color", 2D) = "clear" {}
     }
 
     SubShader {
@@ -61,17 +60,14 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             TEXTURE2D(_HeightTex);
             SAMPLER(sampler_HeightTex);
 
-            TEXTURE2D(_NormalMap);
-            SAMPLER(sampler_NormalMap);
-
             TEXTURE2D(_MarkersGraphic);
             SAMPLER(sampler_MarkersGraphic);
 
             TEXTURE2D(_MarkersPositionData);
             SAMPLER(sampler_MarkersPositionData);
 
-            TEXTURE2D(_CountriesColorData);
-            SAMPLER(sampler_CountriesColorData);
+            TEXTURE2D(_BakedCountriesColor);
+            SAMPLER(sampler_BakedCountriesColor);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
@@ -240,46 +236,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return v;
             }
 
-            #define USE_BLUR
-            half4 DrawCountriesLayer(half4 c, float2 pos) {
-                float dataResolution = _MarkerSettings.z;
-                Vector3i v = GetHexCoord(pos);
-                float2 uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
-                float4 dataCountry = float4(0.0, 0.0, 0.0, 0.0);
-                float4 centerColor = SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
-
-                #ifdef USE_BLUR
-                    // https://blog.csdn.net/baidu_38634017/article/details/97763714
-                    float core[5][5] = {
-                        {1,  4,  7,  4, 1},
-                        {4, 16, 26, 16, 4},
-                        {7, 26, 41, 26, 7},
-                        {4, 16, 26, 16, 4},
-                        {1,  4,  7,  4, 1}
-                    };
-                    float sum = 273;
-                    float off = 0.03;
-                    for (float x = -2; x <= 2; ++x) {
-                        for (float y = -2; y <= 2; ++y) {
-                            v = GetHexCoord(pos + float2(x, y) * off);
-                            uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
-                            dataCountry += SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv) * core[x + 2][y + 2];
-                        }
-                    }
-                    dataCountry /= sum;
-                    dataCountry.rgb = centerColor.rgb;
-                    if (centerColor.a > 0.01) {
-                        dataCountry.a = 1.0 - dataCountry.a;
-                        dataCountry.a = saturate(10.0 * dataCountry.a + 0.25);
-                        dataCountry.a *= lerp(0.5, 1.0, (sin(_Time.y * PI) + 1.0) * 0.5);
-                    }
-                #else
-                    dataCountry = centerColor;
-                #endif
-
-                return half4(lerp(c.rgb, dataCountry.rgb, dataCountry.a), c.a);
-            }
-
             half4 DrawMarkerLayer(half4 c, Vector3i v, float4 dataType, float4 dataAngle, int layer) {
                 int type = round(dataType[layer] * _MarkerSettings.x * _MarkerSettings.y);
                 if (type == 0) {
@@ -318,8 +274,9 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float2 uvAngle = uvType + float2(1.0 / trueDataResolution, 0);
                 float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvType);
                 float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvAngle);
+                half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, i.uv);
 
-                c = DrawCountriesLayer(c, pos);
+                c.rgb = lerp(c.rgb, bakedCountriesColor.rgb, bakedCountriesColor.a);
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 0); // 1st marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 1); // 2nd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
@@ -538,6 +495,142 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
 
             void frag(Varyings i, out half4 outNormalWS : SV_Target0) {
                 outNormalWS = half4(NormalizeNormalPerPixel(i.normal), 0.0);
+            }
+            ENDHLSL
+        }
+
+        Pass {
+            Name "BakeCountriesColorPass" // 专门用于烘焙的Pass
+            Tags {
+                "LightMode" = "Meta"
+            }
+
+            Blend One Zero, One Zero
+            Cull Back
+            ZTest LEqual
+            ZWrite On
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            TEXTURE2D(_CountriesColorData);
+            SAMPLER(sampler_CountriesColorData);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float _Tess;
+                float _Displacement;
+                float4 _MarkerSettings;
+            CBUFFER_END
+
+            struct Attributes {
+                float4 vertex : POSITION;
+                float4 tangent : TANGENT;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings {
+                float4 color : COLOR;
+                float3 normal : NORMAL;
+                float4 vertex : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float3 posWS: TEXCOORD1;
+            };
+
+            struct Vector3i {
+                int x;
+                int y;
+                int z;
+                // this value tells us uv of the hex. which is 0, 0 in one corner and 1, 1 in the oposite.
+                // Perfect to draw texture for teh hex. Note that only single hex will have influence in each pixel! no blenddrawings here!
+                float2 uv;
+            };
+
+            Varyings vert(Attributes i) {
+                Varyings o;
+                VertexPositionInputs v = GetVertexPositionInputs(i.vertex.xyz);
+                o.vertex = v.positionCS;
+                o.posWS = v.positionWS;
+                o.normal = TransformObjectToWorldNormal(i.normal);
+                o.uv = TRANSFORM_TEX(i.uv, _MainTex);
+                o.color = i.color;
+                return o;
+            }
+
+            // converts integer hex coordinates into flat world position used for uv and other 2d scapce calculations
+            float2 ConvertToPosition(Vector3i v) {
+                float cos30 = sqrt(3.0) * 0.5;
+                float2 X = float2(1, 0);
+                float2 Y = float2(-0.5, cos30);
+                float2 Z = float2(-0.5, -cos30);
+                return X * v.x + Y * v.y + Z * v.z;
+            }
+
+            // this code expects hex radius to be 1 for simplification.
+            Vector3i GetHexCoord(float2 pos) {
+                // Convert world flat coordinates into hex FLOAT position
+                float TWO_THIRD = 2.0 / 3.0;
+                float ONE_THIRD = 1.0 / 3.0;
+                float COMPONENT = ONE_THIRD * sqrt(3.0);
+
+                float x = TWO_THIRD * pos.x;
+                float y = (COMPONENT * pos.y - ONE_THIRD * pos.x);
+                float z = -x - y;
+
+                // we cant use floating hex position, so before return we need to convert it to integer.
+                // also its important to understand that floating point position contains some artifacts if converted separately into integers
+                // we have to do some post-calculation cleanup to be able to recover from them.
+                Vector3i v;
+                v.x = round(x);
+                v.y = round(y);
+                v.z = round(z);
+
+                // find delta between rounded and original value
+                float dx = abs(v.x - x);
+                float dy = abs(v.y - y);
+                float dz = abs(v.z - z);
+
+                // value which after rounding get most offset contains biggest artifacts, we want to discard it and recover form {a + b + c = 0} equation
+                // if (dz > dy && dz > dx) {
+                //     v.z = -v.x - v.y;
+                // } else if (dy > dx) {
+                //     v.y = -v.x - v.z;
+                // } else { 
+                //     v.x = -v.y - v.z; 
+                // }
+                int cond1 = step(dy, dz) * step(dx, dz); // if (dz > dy && dz > dx)
+                int cond2 = step(dx, dy) * (1.0 - cond1); // else if (dy > dx)
+                int cond3 = 1.0 - cond1 - cond2; // else
+                int vx = cond3 * (-v.y - v.z) + (1 - cond3) * v.x;
+                int vy = cond2 * (-v.x - v.z) + (1 - cond2) * v.y;
+                int vz = cond1 * (-v.x - v.y) + (1 - cond1) * v.z;
+                v.x = vx;
+                v.y = vy;
+                v.z = vz;
+
+                // recover delta between testpoint and hex center as UV
+                float2 center = ConvertToPosition(v);
+                float2 offset = pos - center;
+                v.uv = offset * 0.5 + float2(0.5, 0.5);
+
+                return v;
+            }
+
+            half4 frag(Varyings i) : SV_TARGET {
+                half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                float2 pos = float2(i.posWS.x, i.posWS.z);
+                float dataResolution = _MarkerSettings.z;
+                Vector3i v = GetHexCoord(pos);
+                float2 uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
+                return SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
             }
             ENDHLSL
         }

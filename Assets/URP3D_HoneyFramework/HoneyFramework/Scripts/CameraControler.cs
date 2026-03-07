@@ -26,6 +26,7 @@ namespace HoneyFramework {
         [SerializeField] private bool doTestType;
         [SerializeField] private HexMarkers.Layer testClearLayer;
         [SerializeField] private bool doTestClearLayer;
+
         [Header("右键地图, 或者勾选\"Do Test Country Color\"进行测试")]
         [SerializeField] private Color testCountryColor = Color.red;
         [SerializeField] private bool doTestCountryColor;

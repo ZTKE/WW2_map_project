@@ -5,17 +5,14 @@ using UnityEngine;
 using System;
 using System.Collections;
 
-namespace HoneyFramework
-{
+namespace HoneyFramework {
     /*
      * Class which manages all world content. Its not designed to be instead of gameplay classes but rather be best point for all information about terrain, world settings and status
      */
-    public class World : MonoBehaviour
-    {
+    public class World : MonoBehaviour {
         static public World instance;
 
-        public enum Status
-        {
+        public enum Status {
             NotReady,
             Preparation,
             TerrainGeneration,
@@ -24,8 +21,7 @@ namespace HoneyFramework
             Ready
         }
 
-        public enum GeneratorMode
-        {
+        public enum GeneratorMode {
             Random,
             Perlin,
         }
@@ -59,8 +55,7 @@ namespace HoneyFramework
         /// Self checking awake
         /// </summary>
         /// <returns></returns>
-        private void Awake()
-        {
+        private void Awake() {
             instance = this;
             Application.targetFrameRate = 5000;
 
@@ -76,13 +71,11 @@ namespace HoneyFramework
             if (foregroundAtlas == null) Debug.LogError("Missing foreground atlas! you need to drag & drop one to World instance!");
         }
 
-        public void ReadyToPolishChunk(Chunk c)
-        {
+        public void ReadyToPolishChunk(Chunk c) {
             chunksToPolish.Add(c);
         }
 
-        public void ReadyToPolishHex(Hex h)
-        {
+        public void ReadyToPolishHex(Hex h) {
             hexesToPolish.Add(h);
         }
 
@@ -90,8 +83,7 @@ namespace HoneyFramework
         /// Initialization of basic data. This function calls world planning and related data loading and creation
         /// </summary>
         /// <returns></returns>
-        public void Initialize()
-        {
+        public void Initialize() {
             status = Status.Preparation;
 
             TerrainDefinition.ReloadDefinitions();
@@ -101,16 +93,14 @@ namespace HoneyFramework
             RiverFactory.CreateRivers(this, hexRadius);
 
             for (int x = -chunkRadius; x <= chunkRadius; x++)
-                for (int y = -chunkRadius; y <= chunkRadius; y++)
-                {
+                for (int y = -chunkRadius; y <= chunkRadius; y++) {
                     PrepareChunkData(new Vector2i(x, y));
                 }
 
             status = Status.TerrainGeneration;
         }
 
-        public void InitializeFromSave()
-        {
+        public void InitializeFromSave() {
             status = Status.Preparation;
 
             TerrainDefinition.ReloadDefinitions();
@@ -118,18 +108,15 @@ namespace HoneyFramework
             SaveManager.Load(this);
 
             for (int x = -chunkRadius; x <= chunkRadius; x++)
-                for (int y = -chunkRadius; y <= chunkRadius; y++)
-                {
+                for (int y = -chunkRadius; y <= chunkRadius; y++) {
                     PrepareChunkData(new Vector2i(x, y));
                 }
 
             status = Status.TerrainGeneration;
         }
 
-        static public World GetInstance()
-        {
-            if (instance == null)
-            {
+        static public World GetInstance() {
+            if (instance == null) {
                 Debug.LogError("World instance not initialized or lost!");
             }
 
@@ -141,22 +128,19 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="radius"></param>
         /// <returns></returns>
-        public void GenerateBasicWorld(int radius, GeneratorMode mode)
-        {
-            hexes = new Dictionary<Vector3i, Hex>();            
+        public void GenerateBasicWorld(int radius, GeneratorMode mode) {
+            hexes = new Dictionary<Vector3i, Hex>();
 
             List<Vector3i> rangeHexes = HexNeighbors.GetRange(new Vector3i(), radius);
             int terrainCount = TerrainDefinition.definitions.Count;
-            if (terrainCount < 1)
-            {
+            if (terrainCount < 1) {
                 Debug.LogError("no terrain definitions to use!");
                 return;
             }
 
             List<TerrainDefinition> tdList = TerrainDefinition.definitions.FindAll(o => o.source.mode == MHTerrain.Mode.normal);
 
-            foreach (Vector3i v in rangeHexes)
-            {
+            foreach (Vector3i v in rangeHexes) {
                 hexes.Add(v, GetHexDefinition(mode, v, tdList));
             }
         }
@@ -168,8 +152,7 @@ namespace HoneyFramework
         /// <param name="position"></param>
         /// <param name="tdList"></param>
         /// <returns></returns>
-        static public Hex GetHexDefinition(GeneratorMode mode, Vector3i position, List<TerrainDefinition> tdList)
-        {
+        static public Hex GetHexDefinition(GeneratorMode mode, Vector3i position, List<TerrainDefinition> tdList) {
             Hex hex = new Hex();
             int index = 0;
 
@@ -177,20 +160,19 @@ namespace HoneyFramework
             hex.rotationAngle = UnityEngine.Random.Range(0.0f, 360.0f);
             TerrainDefinition def = null;
 
-            switch (mode)
-            {
-                case GeneratorMode.Random:
-                    index = UnityEngine.Random.Range(0, tdList.Count);
-                    def = tdList[index];
-                    break;
+            switch (mode) {
+            case GeneratorMode.Random:
+                index = UnityEngine.Random.Range(0, tdList.Count);
+                def = tdList[index];
+                break;
 
-                case GeneratorMode.Perlin:
-                    float xScale = .16f;
-                    float yScale = .16f;
-                    float value = Mathf.PerlinNoise(position.x * xScale, position.y * yScale);
-                    index = (int)(value * (tdList.Count - 1));
-                    def = tdList[index];
-                    break;
+            case GeneratorMode.Perlin:
+                float xScale = .16f;
+                float yScale = .16f;
+                float value = Mathf.PerlinNoise(position.x * xScale, position.y * yScale);
+                index = (int)(value * (tdList.Count - 1));
+                def = tdList[index];
+                break;
             }
 
             hex.terrainType = def;
@@ -207,16 +189,12 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="pos"></param>
         /// <returns></returns>
-        public bool PrepareChunkData(Vector2i pos)
-        {
+        public bool PrepareChunkData(Vector2i pos) {
             Chunk chunk;
-            if (chunks.ContainsKey(pos))
-            {                
+            if (chunks.ContainsKey(pos)) {
                 chunk = chunks[pos];
                 chunk.ClearHexesCovered();
-            }
-            else
-            {
+            } else {
                 chunk = new Chunk(pos, this);
             }
             Rect r = chunk.GetRect();
@@ -230,22 +208,18 @@ namespace HoneyFramework
             List<Vector3i> intersections = HexNeighbors.GetHexCentersWithinSquare(r);
             bool foundAny = false;
 
-            foreach (Vector3i v in intersections)
-            {
+            foreach (Vector3i v in intersections) {
                 //if hex exists at those coordinates, add it to chunk management
-                if (hexes.ContainsKey(v))
-                {
+                if (hexes.ContainsKey(v)) {
                     chunk.hexesCovered[v] = hexes[v];
                     foundAny = foundAny || !(hexes[v].terrainType.source.mode == MHTerrain.Mode.IsBorderType);
-                }
-                else
-                {
+                } else {
                     //produce border hexes which will fill empty space in chunk
                     Hex border = new Hex();
                     TerrainDefinition td = TerrainDefinition.definitions.Find(o => o.source.mode == MHTerrain.Mode.IsBorderType);
                     if (td == null) td = TerrainDefinition.definitions[0];
                     border.terrainType = td;
-                    border.rotationAngle = 0;                    
+                    border.rotationAngle = 0;
                     border.orderPosition = UnityEngine.Random.Range(0.0f, 1.0f);
                     border.rotationAngle = UnityEngine.Random.Range(0.0f, 360.0f);
 
@@ -256,26 +230,23 @@ namespace HoneyFramework
                 }
             }
 
-            if (foundAny == false)
-            {
+            if (foundAny == false) {
                 return false;
             }
-            
-            chunks[pos] = chunk;           
+
+            chunks[pos] = chunk;
 
             WorldOven.AddDirtyChunk(chunk);
 
             return true;
-        }        
+        }
 
         /// <summary>
         /// Starts coroutine which ads finishing data to chunks
         /// </summary>
         /// <returns></returns>
-        public bool StartPolishingWorld()
-        {
-            if (chunks.Count > 0)
-            {
+        public bool StartPolishingWorld() {
+            if (chunks.Count > 0) {
                 StartCoroutine("FinishingWorld");
                 return true;
             }
@@ -287,15 +258,13 @@ namespace HoneyFramework
         /// It as well do processing foreground data and generation of the mesh for it
         /// </summary>
         /// <returns></returns>
-        IEnumerator FinishingWorld()
-        {
+        IEnumerator FinishingWorld() {
             status = Status.Finishing;
 
             //we will try to compress chunks. They will ignore this command if they are already compressed
 
             CoroutineHelper.StartTimer();
-            foreach (Chunk c in chunksToPolish)
-            {             
+            foreach (Chunk c in chunksToPolish) {
                 c.CompressHeight();
                 if (CoroutineHelper.CheckIfPassed(20)) { yield return null; CoroutineHelper.StartTimer(); }
             }
@@ -303,15 +272,13 @@ namespace HoneyFramework
             //now start preparation for trees
             status = Status.Foreground;
 
-            foreach (Hex h in hexesToPolish )
-            {
+            foreach (Hex h in hexesToPolish) {
                 h.GenerateForegroundData();
                 if (CoroutineHelper.CheckIfPassed(20)) { yield return null; CoroutineHelper.StartTimer(); }
             }
             hexesToPolish.Clear();
 
-            foreach (Chunk c in chunksToPolish)
-            {
+            foreach (Chunk c in chunksToPolish) {
                 c.CleanupForeground(false);
                 c.GetForegroundData();
                 if (CoroutineHelper.CheckIfPassed(20)) { yield return null; CoroutineHelper.StartTimer(); }
@@ -328,8 +295,7 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="position"></param>
         /// <returns></returns>
-        static public float GetWorldHeightAt(Vector3 world3Dposition)
-        {
+        static public float GetWorldHeightAt(Vector3 world3Dposition) {
             Chunk chunk = Chunk.WorldToChunk(world3Dposition);
             if (chunk == null || chunk.height == null) return 0f;
 
@@ -352,30 +318,25 @@ namespace HoneyFramework
         /// <param name="radius"></param>
         /// <param name="color"></param>
         /// <returns></returns>
-        static public void PaintTrees(Vector2 position, float radius, Color color)
-        {
+        static public void PaintTrees(Vector2 position, float radius, Color color) {
             Vector3i hexPosition = HexCoordinates.GetHexCoordAt(position);
 
             //get hexagonal radius of our interest. taking into account possibility that some trees will go off the hex borders
             int r = (int)((radius + Hex.foregroundRadius * 1.1f) / (Hex.hexRadius * 2f));
 
-            List<Vector3i> positions = HexNeighbors.GetRange(hexPosition, r);            
+            List<Vector3i> positions = HexNeighbors.GetRange(hexPosition, r);
             World w = World.GetInstance();
 
-            float sqradius = radius*radius;
+            float sqradius = radius * radius;
 
-            foreach (Vector3i pos in positions)
-            {
-                if (w.hexes.ContainsKey(pos))
-                {
+            foreach (Vector3i pos in positions) {
+                if (w.hexes.ContainsKey(pos)) {
                     Hex h = w.hexes[pos];
                     if (h.foregroundData == null) continue;
 
-                    foreach (ForegroundData f in h.foregroundData)
-                    {
+                    foreach (ForegroundData f in h.foregroundData) {
                         Vector2 dist = position - new Vector2(f.position.x, f.position.z);
-                        if (dist.sqrMagnitude < sqradius)
-                        {
+                        if (dist.sqrMagnitude < sqradius) {
                             f.color = color;
                             f.colorFinal = color;
                         }
@@ -383,17 +344,16 @@ namespace HoneyFramework
                 }
             }
 
-            Rect rect = new Rect(  position.x - radius,
+            Rect rect = new Rect(position.x - radius,
                                 position.y - radius,
-                                radius*2,
-                                radius*2 );
+                                radius * 2,
+                                radius * 2);
             List<Chunk> chunks = Chunk.GetChunksInRect(rect);
 
-            foreach(Chunk c in chunks)
-            {
+            foreach (Chunk c in chunks) {
                 c.CleanupForeground(false);
                 c.GetForegroundData();
-            }            
+            }
         }
     }
 }

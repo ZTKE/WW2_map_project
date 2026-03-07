@@ -4,14 +4,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace HoneyFramework
-{
-     /*
-     * base class for single hex. It contains all data required by the system to define its design, type and behavior
-     */
+namespace HoneyFramework {
+    /*
+    * base class for single hex. It contains all data required by the system to define its design, type and behavior
+    */
     [Serializable()]
-    public class Hex : ISerializable
-    {
+    public class Hex : ISerializable {
         //We are using system which uses coordinates:
 
         //      Y \
@@ -85,8 +83,7 @@ namespace HoneyFramework
         [NonSerialized]
         public List<Hex> directionsPassingRiver = new List<Hex>();
 
-        public enum Visibility
-        {
+        public enum Visibility {
             FullyVisible,
             Shadowed,
             NotVisible,
@@ -100,22 +97,18 @@ namespace HoneyFramework
         /// <param name="info"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public Hex(SerializationInfo info, StreamingContext context)
-        {
-            position        = (Vector3i)info.GetValue("position", typeof(Vector3i));
-            orderPosition   = (float)info.GetValue("orderPosition", typeof(float));
-            rotationAngle   = (float)info.GetValue("rotationAngle", typeof(float));
-            foregroundData  = (List<ForegroundData>)info.GetValue("foregroundData", typeof(List<ForegroundData>));
+        public Hex(SerializationInfo info, StreamingContext context) {
+            position = (Vector3i)info.GetValue("position", typeof(Vector3i));
+            orderPosition = (float)info.GetValue("orderPosition", typeof(float));
+            rotationAngle = (float)info.GetValue("rotationAngle", typeof(float));
+            foregroundData = (List<ForegroundData>)info.GetValue("foregroundData", typeof(List<ForegroundData>));
             directionsPassingRiver = (List<Hex>)info.GetValue("directionsPassingRiver", typeof(List<Hex>));
 
             int terrainIndex = (int)info.GetValue("terrainIndex", typeof(int));
 
-            if (terrainIndex < TerrainDefinition.definitions.Count)
-            {
+            if (terrainIndex < TerrainDefinition.definitions.Count) {
                 terrainType = TerrainDefinition.definitions[terrainIndex];
-            }
-            else
-            {
+            } else {
                 Debug.Log("Terrain index out of bound!");
             }
         }
@@ -127,8 +120,7 @@ namespace HoneyFramework
         /// <param name="info"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             info.AddValue("position", position, typeof(Vector3i));
             info.AddValue("orderPosition", orderPosition, typeof(float));
             info.AddValue("rotationAngle", rotationAngle, typeof(float));
@@ -139,8 +131,7 @@ namespace HoneyFramework
             info.AddValue("terrainIndex", terrainIndex, typeof(int));
         }
 
-        public Hex()
-        {
+        public Hex() {
 
         }
 
@@ -148,8 +139,7 @@ namespace HoneyFramework
         /// returns direction of the X axis from hexagonal space to world
         /// </summary>
         /// <returns></returns>
-        public static Vector2 GetDirX()
-        {
+        public static Vector2 GetDirX() {
             if (!dirInitialized) InitializeDirections();
 
             return Xdir;
@@ -159,8 +149,7 @@ namespace HoneyFramework
         /// returns direction of the Y axis from hexagonal space to world
         /// </summary>
         /// <returns></returns>
-        public static Vector2 GetDirY()
-        {
+        public static Vector2 GetDirY() {
             if (!dirInitialized) InitializeDirections();
 
             return Ydir;
@@ -170,16 +159,14 @@ namespace HoneyFramework
         /// returns direction of the Z axis from hexagonal space to world
         /// </summary>
         /// <returns></returns>
-        public static Vector2 GetDirZ()
-        {
+        public static Vector2 GetDirZ() {
             if (!dirInitialized) InitializeDirections();
 
             return Zdir;
         }
 
 
-        private static void InitializeDirections()
-        {
+        private static void InitializeDirections() {
             Quaternion Yrot = Quaternion.Euler(0, 0, 120);
             Quaternion Zrot = Quaternion.Euler(0, 0, 240);
 
@@ -194,8 +181,7 @@ namespace HoneyFramework
         /// Converts hex position to world 2d plane (X ,Z)
         /// </summary>
         /// <returns></returns>
-        public Vector2 GetWorldPosition()
-        {
+        public Vector2 GetWorldPosition() {
             return HexCoordinates.HexToWorld(position);
         }
 
@@ -203,17 +189,14 @@ namespace HoneyFramework
         /// Generates foreground data of this single hex, later chunks will take control of foreground which have covered them but production occurs here.
         /// </summary>
         /// <returns></returns>
-        public void GenerateForegroundData()
-        {
+        public void GenerateForegroundData() {
             foregroundData.Clear();
 
             Vector2 flatHexPosition = GetWorldPosition();
             Vector3 hexPosition = new Vector3(flatHexPosition.x, 0.0f, flatHexPosition.y);
 
-            foreach (MHSimpleCounter type in terrainType.source.fgTypes)
-            {
-                for (int i = 0; i < type.count; i++)
-                {
+            foreach (MHSimpleCounter type in terrainType.source.fgTypes) {
+                for (int i = 0; i < type.count; i++) {
                     ForegroundData data = new ForegroundData();
 
                     //produces value focused around center of the range
@@ -237,24 +220,23 @@ namespace HoneyFramework
         /// terrain updates are required by your project or you do some level of live editing world (eg as designers tool)
         /// </summary>
         /// <returns></returns>
-        public void RebuildChunksOwningThisHex()
-        {
+        public void RebuildChunksOwningThisHex() {
             //Note! this shouldn't be called if world is not ready
 
             //get hex center in world
-            Vector2 pos = HexCoordinates.HexToWorld(position);            
+            Vector2 pos = HexCoordinates.HexToWorld(position);
 
             //expand its influence by the texture halfWidth (aka radius) which would let us find all hexes which influence our chunk even with border of their texture
             float xMin = pos.x - Hex.hexTexturePotentialReach;
             float yMin = pos.y - Hex.hexTexturePotentialReach;
             float xMax = pos.x + Hex.hexTexturePotentialReach;
             float yMax = pos.y + Hex.hexTexturePotentialReach;
-            
+
             List<Chunk> chunks = new List<Chunk>();
 
             Chunk c;
             c = Chunk.WorldToChunk(new Vector3(xMin, 0f, yMin));
-            World.GetInstance().PrepareChunkData(c.position); 
+            World.GetInstance().PrepareChunkData(c.position);
             chunks.Add(c);
             c = Chunk.WorldToChunk(new Vector3(xMax, 0f, yMin));
             if (!chunks.Contains(c)) { World.GetInstance().PrepareChunkData(c.position); chunks.Add(c); }
@@ -264,40 +246,34 @@ namespace HoneyFramework
             if (!chunks.Contains(c)) { World.GetInstance().PrepareChunkData(c.position); }
 
             World.GetInstance().ReadyToPolishHex(this);
-            
+
         }
 
         /// <summary>
         /// Informs if hex lies next to the river
         /// </summary>
         /// <returns></returns>
-        public bool IsNextToRiver()
-        {
+        public bool IsNextToRiver() {
             return directionsPassingRiver.Count > 0;
         }
-
 
         /// <summary>
         /// Returns current hex visibility status
         /// </summary>
         /// <returns></returns>
-        public Visibility GetVisibility()
-        {
+        public Visibility GetVisibility() {
             return visibility;
         }
-
 
         /// <summary>
         /// Allows to set current visibility status and informs World Data Texture about this change (if needed)
         /// </summary>
         /// <param name="v"></param>
         /// <returns></returns>
-        public void SetVisibility(Visibility v)
-        {
-            if (v != visibility)
-            {
+        public void SetVisibility(Visibility v) {
+            if (v != visibility) {
                 visibility = v;
-                
+
                 //ensure fog of war knows that data have changed. so that it can update accordingly
                 FogOfWar.AddDirtyHex(this);
             }

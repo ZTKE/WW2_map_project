@@ -12,7 +12,7 @@ namespace HoneyFramework {
 
         static public Vector3 lightSourceDirection = new Vector3(0.1f, -0.025f, 0.0f);
 
-        //static runtime data        
+        // static runtime data
         public Camera bakingCamera;
         public GameObject quadBase;
         public GameObject hexOutlineBase;
@@ -20,7 +20,7 @@ namespace HoneyFramework {
 
         public Material mixerMaterial;
         public Material heightMaterial;
-        public Material riverHeightMaterial; //this material is alternative height material for rivers
+        public Material riverHeightMaterial; // this material is alternative height material for rivers
         public Material shadowsAndHeightMaterial;
         public Material diffuseMaterial;
 
@@ -159,13 +159,9 @@ namespace HoneyFramework {
                         riverSmoothenerSections.Add(mr);
                     }
                 }
-
-
-
                 StartCoroutine("Baking");
             }
         }
-
 
         /// <summary>
         /// Most complex functionality which ensures all stages of baking take place in order and that they allow world to update form time to time instead of freezing everything.
@@ -745,6 +741,14 @@ namespace HoneyFramework {
             Graphics.Blit(rt, texture);
 
             RenderTargetManager.ReleaseTexture(rt);
+        }
+
+        // 烘焙国家颜色贴图
+        public void BakeChunkCountriesColor(Chunk chunk, ref RenderTexture rt, in Texture2D data) {
+            // 1. 
+
+            //Vector2 uv = chunk.GetWorldToUV(chunk.chunkObject.transform.position);
+            //Debug.Log(uv);
         }
     }
 }

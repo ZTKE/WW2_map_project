@@ -47,6 +47,7 @@ namespace HoneyFramework {
         Color32[] colorData;
         Color32[] colorDataForCountries;
         bool dirty;
+        bool dirtyForCountries;
 
         void Awake() {
             instance = this;
@@ -67,6 +68,7 @@ namespace HoneyFramework {
             hexDataForCountries.Apply();
 
             dirty = false;
+            dirtyForCountries = false;
         }
 
         /// <summary>
@@ -95,16 +97,6 @@ namespace HoneyFramework {
             //z - width of hex data texture without counting data size
             //w - data size per hex
             return new Vector4(8f, 8f, textureMapSize, dataSize);
-        }
-
-        /// <summary>
-        /// Marks the Texture as dirty so its updated at the next render
-        /// </summary>
-        /// <returns></returns>
-        static public void MarkAsDirtyDataTexture() {
-            if (instance != null) {
-                instance.dirty = true;
-            }
         }
 
         /// <summary>
@@ -242,19 +234,30 @@ namespace HoneyFramework {
 
             hexDataForCountries.SetPixel(x, y, color);
 
-            dirty = true;
+            dirtyForCountries = true;
         }
 
         void LateUpdate() {
-            if (dirty) {
-                hexData.Apply();
-                hexDataForCountries.Apply();
+            if (dirty || dirtyForCountries) {
+                if (dirty) {
+                    hexData.Apply();
+                }
+                if (dirtyForCountries) {
+                    hexDataForCountries.Apply();
+                }
 
                 foreach (KeyValuePair<Vector2i, Chunk> pair in World.instance.chunks) {
                     pair.Value.SetMarkerMaterials();
+                    // 暂时先将所有区块的国家颜色渲染都设置为脏数据
+                    if (dirtyForCountries) {
+                        pair.Value.countryColorIsDirty = true;
+                    }
                 }
                 dirty = false;
+                dirtyForCountries = false;
             }
         }
+
+        public Texture2D GetHexDataForCountries() => hexDataForCountries;
     }
 }

@@ -43,6 +43,20 @@ namespace HoneyFramework {
         public bool diffuseCompressed;
         public bool heightCompressed;
 
+        private RenderTexture bakedCountryColor; // 烘焙好的颜色贴图
+        // 是否为脏数据, 如果为脏数据则需要重新烘焙颜色贴图
+        public bool countryColorIsDirty {
+            get => _countryColorIsDirty;
+            set {
+                _countryColorIsDirty = value;
+                if (value) {
+                    BakeCountryColor();
+                }
+            }
+        }
+
+        private bool _countryColorIsDirty;
+
         /// <summary>
         /// Deserialization constructor to match serialization protocol
         /// </summary>
@@ -63,7 +77,6 @@ namespace HoneyFramework {
         public void GetObjectData(SerializationInfo info, StreamingContext context) {
             info.AddValue("position", position, typeof(Vector2i));
         }
-
 
         public Chunk(Vector2i position, World worldOwner) {
             this.position = position;
@@ -234,7 +247,6 @@ namespace HoneyFramework {
                 chunkMaterial.SetTexture("_MarkersPositionData", HexMarkers.GetHexDataTexture());
                 chunkMaterial.SetVector("_MarkerSettings", HexMarkers.GetMarkersSettings());
                 chunkMaterial.SetTexture("_CountriesColorData", HexMarkers.GetHexDataForCountriesTexture());
-                // todo: 添加国家颜色数据RT的高斯模糊烘焙, 做外描边效果
             }
         }
 
@@ -532,6 +544,12 @@ namespace HoneyFramework {
         /// <returns></returns>
         public void ClearHexesCovered() {
             hexesCovered.Clear();
+        }
+
+        public void BakeCountryColor() {
+            // 准备烘焙国家颜色贴图
+            WorldOven.GetInstance().BakeChunkCountriesColor(this, ref bakedCountryColor, HexMarkers.instance.GetHexDataForCountries());
+            countryColorIsDirty = false;
         }
     }
 }

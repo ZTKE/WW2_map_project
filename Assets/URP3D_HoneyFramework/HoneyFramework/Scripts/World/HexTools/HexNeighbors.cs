@@ -2,13 +2,11 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace HoneyFramework
-{
+namespace HoneyFramework {
     /*
      * Class which is designed to find areas of the hexes around other specified hex.
      */
-    public class HexNeighbors
-    {
+    public class HexNeighbors {
         static public Vector3i[] neighbours = new Vector3i[]{
                                                 new Vector3i( 1,  0, -1), //  X,  0, -Z
                                                 new Vector3i( 1, -1,  0), //  X, -Y,  0
@@ -16,7 +14,6 @@ namespace HoneyFramework
                                                 new Vector3i(-1,  1,  0), // -X,  Y,  0
                                                 new Vector3i( 0, -1,  1), //  0, -Y,  Z
                                                 new Vector3i(-1,  0,  1)};// -X,  0,  Z
-
 
         /// <summary>
         /// Function which is able to find hex position which are shared area of two radius areas. 
@@ -27,8 +24,7 @@ namespace HoneyFramework
         /// <param name="radiusB"></param>
         /// <param name="onlyBorder"> if true, result area will contain list of only most external set of the hexes </param>
         /// <returns> note return MAY not contain positions provided as centers or no results at all! </returns>
-        static public List<Vector3i> GetSharedRange(Vector3i centerA, int radiusA, Vector3i centerB, int radiusB, bool onlyBorder)
-        {
+        static public List<Vector3i> GetSharedRange(Vector3i centerA, int radiusA, Vector3i centerB, int radiusB, bool onlyBorder) {
             if (radiusA < 0 || radiusB < 0) return new List<Vector3i>();
 
             //if map is smaller than test area lets inverse
@@ -36,10 +32,8 @@ namespace HoneyFramework
 
             List<Vector3i> results = new List<Vector3i>();
 
-            for (int x = -radiusA; x <= radiusA; x++)
-            {
-                for (int y = Mathf.Max(-radiusA, -x - radiusA); y <= Mathf.Min(radiusA, -x + radiusA); y++)
-                {
+            for (int x = -radiusA; x <= radiusA; x++) {
+                for (int y = Mathf.Max(-radiusA, -x - radiusA); y <= Mathf.Min(radiusA, -x + radiusA); y++) {
                     int z = -x - y;
 
                     //v is just distance from centerA
@@ -49,15 +43,11 @@ namespace HoneyFramework
                     int distanceA = HexCoordinates.HexDistance(Vector3i.zero, v);
                     int distanceB = HexCoordinates.HexDistance(centerB, vA);
 
-                    if (onlyBorder)
-                    {
-                        if ((distanceB <= radiusB && distanceA == radiusA) || (distanceA < radiusA && distanceB == radiusB))
-                        {
+                    if (onlyBorder) {
+                        if ((distanceB <= radiusB && distanceA == radiusA) || (distanceA < radiusA && distanceB == radiusB)) {
                             results.Add(vA);
                         }
-                    }
-                    else if (distanceB <= radiusB && distanceA <= radiusA)
-                    {
+                    } else if (distanceB <= radiusB && distanceA <= radiusA) {
                         results.Add(vA);
                     }
                 }
@@ -72,8 +62,7 @@ namespace HoneyFramework
         /// <param name="startPosition"></param>
         /// <param name="maxDistance"></param>
         /// <returns> return will contain center and all positions within radius</returns>
-        static public List<Vector3i> GetRange(Vector3i startPosition, int maxDistance)
-        {
+        static public List<Vector3i> GetRange(Vector3i startPosition, int maxDistance) {
             return GetRange(startPosition, maxDistance, 0);
         }
 
@@ -84,21 +73,17 @@ namespace HoneyFramework
         /// <param name="maxDistance">maximum included in result</param>
         /// <param name="minDistance">minimum included in result</param>
         /// <returns> return will contain center if min radius is 0 and all positions between min and max radius </returns>
-        static public List<Vector3i> GetRange(Vector3i startPosition, int maxDistance, int minDistance)
-        {
+        static public List<Vector3i> GetRange(Vector3i startPosition, int maxDistance, int minDistance) {
             if (maxDistance < 0 || minDistance > maxDistance) return new List<Vector3i>();
             List<Vector3i> results = new List<Vector3i>();
 
-            for (int x = -maxDistance; x <= maxDistance; x++)
-            {
-                for (int y = Mathf.Max(-maxDistance, -x - maxDistance); y <= Mathf.Min(maxDistance, -x + maxDistance); y++)
-                {
+            for (int x = -maxDistance; x <= maxDistance; x++) {
+                for (int y = Mathf.Max(-maxDistance, -x - maxDistance); y <= Mathf.Min(maxDistance, -x + maxDistance); y++) {
                     int z = -x - y;
                     //distance from starting point have to be within range minimumRadius => maximumRadius
                     //our calculation takes care only for those up to maximum range but we have to discard those which are in range shorter than allowed minimum
                     Vector3i v = new Vector3i(x, y, z);
-                    if (HexCoordinates.HexDistance(Vector3i.zero, v) >= minDistance)
-                    {
+                    if (HexCoordinates.HexDistance(Vector3i.zero, v) >= minDistance) {
                         results.Add(v + startPosition);
                     }
                 }
@@ -112,8 +97,7 @@ namespace HoneyFramework
         /// </summary>
         /// <param name="r">2d space to be covered. Note that you may want to extend rectangle by at least hex radius if you need to know it there is cross coverage. By default it returns only positions of the centers which fit within rect</param>
         /// <returns></returns>
-        static public List<Vector3i> GetHexCentersWithinSquare(Rect r)
-        {
+        static public List<Vector3i> GetHexCentersWithinSquare(Rect r) {
             Vector3i center = HexCoordinates.GetHexCoordAt(r.center);
             List<Vector3i> ret = new List<Vector3i>();
             ret.Add(center);
@@ -121,16 +105,13 @@ namespace HoneyFramework
             int ring = 1;
 
             bool anyInRange = true;
-            while (anyInRange)
-            {
+            while (anyInRange) {
 
                 anyInRange = false;
                 List<Vector3i> ringPositions = GetRange(center, ring, ring);
-                foreach (Vector3i pos in ringPositions)
-                {
+                foreach (Vector3i pos in ringPositions) {
                     //check if rectangle contains world position of this hex
-                    if (r.Contains(HexCoordinates.HexToWorld(pos)))
-                    {
+                    if (r.Contains(HexCoordinates.HexToWorld(pos))) {
                         anyInRange = true;
                         ret.Add(pos);
                     }
