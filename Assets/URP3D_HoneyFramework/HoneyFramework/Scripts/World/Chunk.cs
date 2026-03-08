@@ -27,6 +27,8 @@ namespace HoneyFramework {
         public Texture2D diffuse;
         public Texture2D height;
         public Texture2D shadows;
+        public Texture2D bakedCountriesColor; // 烘焙好的颜色贴图
+        public Texture2D bakedCountriesColorBlur; // 烘焙好的颜色贴图
 
         public List<Texture2D> texturesForCleanup = new List<Texture2D>();
 
@@ -43,7 +45,6 @@ namespace HoneyFramework {
         public bool diffuseCompressed;
         public bool heightCompressed;
 
-        private RenderTexture bakedCountryColor; // 烘焙好的颜色贴图
         // 是否为脏数据, 如果为脏数据则需要重新烘焙颜色贴图
         public bool countryColorIsDirty {
             get => _countryColorIsDirty;
@@ -213,6 +214,8 @@ namespace HoneyFramework {
             MeshRenderer mr = chunkObject.GetComponent<MeshRenderer>();
             mr.material.SetTexture("_MainTex", diffuse);
             mr.material.SetTexture("_HeightTex", height);
+            mr.material.SetTexture("_BakedCountriesColor", bakedCountriesColor);
+            mr.material.SetTexture("_BakedCountriesColorBlur", bakedCountriesColorBlur);
 
             chunkMaterial = mr.material;
 
@@ -548,7 +551,7 @@ namespace HoneyFramework {
 
         public void BakeCountryColor() {
             // 准备烘焙国家颜色贴图
-            WorldOven.GetInstance().BakeChunkCountriesColor(this, ref bakedCountryColor, HexMarkers.instance.GetHexDataForCountries());
+            WorldOven.GetInstance().BakeChunkCountriesColor(this, ref bakedCountriesColor, ref bakedCountriesColorBlur, HexMarkers.instance.GetHexDataForCountries());
             countryColorIsDirty = false;
         }
     }

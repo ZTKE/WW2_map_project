@@ -48,6 +48,7 @@ namespace HoneyFramework {
         Color32[] colorDataForCountries;
         bool dirty;
         bool dirtyForCountries;
+        public HashSet<Color> countryColors = new HashSet<Color>();
 
         void Awake() {
             instance = this;
@@ -89,6 +90,10 @@ namespace HoneyFramework {
 
         static public Texture2D GetHexDataForCountriesTexture() {
             return instance.hexDataForCountries;
+        }
+
+        static public HashSet<Color> GetCountryColors() {
+            return instance.countryColors;
         }
 
         static public Vector4 GetMarkersSettings() {
@@ -233,6 +238,9 @@ namespace HoneyFramework {
             if (y < 0) { y = textureMapSize + y; }
 
             hexDataForCountries.SetPixel(x, y, color);
+            if (color.a > 0.01) {
+                countryColors.Add(color);
+            }
 
             dirtyForCountries = true;
         }

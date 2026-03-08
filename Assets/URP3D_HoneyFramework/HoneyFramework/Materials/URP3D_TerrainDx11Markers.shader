@@ -17,6 +17,11 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
         // 国家颜色数据不需要_MarkerSettings.w, 也就是默认是64*64的RT贴图
         _CountriesColorData ("Countries Color Data", 2D) = "clear" {}
         _BakedCountriesColor ("Baked Countries Color", 2D) = "clear" {}
+        _BakedCountriesColorBlur ("Baked Countries Color Blur", 2D) = "clear" {}
+
+        [HideInInspector] _BakedCountriesColorBlurCombine ("Baked Countries Color Blur Combine", 2D) = "clear" {}
+        [HideInInspector] _BakeTargetCountryColor ("Bake Target Country Color", Color) = (0.0, 0.0, 0.0, 0.0)
+        [HideInInspector] _ChunkRect ("Chunk Rect", Vector) = (0.0, 0.0, 0.0, 0.0)
     }
 
     SubShader {
@@ -69,11 +74,16 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             TEXTURE2D(_BakedCountriesColor);
             SAMPLER(sampler_BakedCountriesColor);
 
+            TEXTURE2D(_BakedCountriesColorBlur);
+            SAMPLER(sampler_BakedCountriesColorBlur);
+
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
+                float4 _ChunkRect;
+                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -274,13 +284,22 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float2 uvAngle = uvType + float2(1.0 / trueDataResolution, 0);
                 float4 dataType = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvType);
                 float4 dataAngle = SAMPLE_TEXTURE2D(_MarkersPositionData, sampler_MarkersPositionData, uvAngle);
-                half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, i.uv);
 
-                c.rgb = lerp(c.rgb, bakedCountriesColor.rgb, bakedCountriesColor.a);
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 0); // 1st marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 1); // 2nd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 3); // 4th marker layer
+
+                half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, i.uv);
+                half4 bakedCountriesColorBlur = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, i.uv);
+
+                float err = length(bakedCountriesColor - bakedCountriesColorBlur);
+                bakedCountriesColor.a -= saturate(1.0 - err * 2.0) * 0.9;
+                bakedCountriesColor.rgb -= smoothstep(0.4, 0.45, err) * 0.4;
+                bakedCountriesColor = saturate(bakedCountriesColor);
+
+                float t = 1.0; // lerp(0.1, 1.0, (sin(_Time.y * PI) + 1.0) * 0.5);
+                c.rgb = lerp(c.rgb, bakedCountriesColor.rgb, bakedCountriesColor.a * t);
 
                 half4 albedo = half4(c.rgb, 1.0);
 
@@ -409,6 +428,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
+                float4 _ChunkRect;
+                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -527,22 +548,18 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
+                float4 _ChunkRect;
+                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
                 float4 vertex : POSITION;
-                float4 tangent : TANGENT;
-                float3 normal : NORMAL;
                 float2 uv : TEXCOORD0;
-                float4 color : COLOR;
             };
 
             struct Varyings {
-                float4 color : COLOR;
-                float3 normal : NORMAL;
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float3 posWS: TEXCOORD1;
             };
 
             struct Vector3i {
@@ -555,13 +572,9 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             };
 
             Varyings vert(Attributes i) {
-                Varyings o;
-                VertexPositionInputs v = GetVertexPositionInputs(i.vertex.xyz);
-                o.vertex = v.positionCS;
-                o.posWS = v.positionWS;
-                o.normal = TransformObjectToWorldNormal(i.normal);
+                Varyings o = (Varyings)0;
+                o.vertex = TransformObjectToHClip(i.vertex.xyz);
                 o.uv = TRANSFORM_TEX(i.uv, _MainTex);
-                o.color = i.color;
                 return o;
             }
 
@@ -625,13 +638,152 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             }
 
             half4 frag(Varyings i) : SV_TARGET {
-                half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
-                float2 pos = float2(i.posWS.x, i.posWS.z);
-                float dataResolution = _MarkerSettings.z;
+                float2 pos = _ChunkRect.xy + (0.5 - i.uv) * _ChunkRect.zw; // float2(i.posWS.x, i.posWS.z);
                 Vector3i v = GetHexCoord(pos);
-                float2 uv = float2((v.x + 0.5) / dataResolution, (v.y + 0.5) / dataResolution);
-                return SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
+                float2 uv = float2((v.x + 0.5) / _MarkerSettings.z, (v.y + 0.5) / _MarkerSettings.z);
+                half4 col = SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
+                if (col.a < 0.01) {
+                    discard;
+                }
+                if (_BakeTargetCountryColor.a < 0.01) {
+                    return col;
+                }
+                float err = length(col.rgb - _BakeTargetCountryColor.rgb);
+                if (err > 0.01) {
+                    discard;
+                }
+                return col;
             }
+            ENDHLSL
+        }
+
+        Pass {
+            Name "BakeCountriesColorBlurPass" // 专门用于烘焙的Pass
+            Tags {
+                "LightMode" = "Meta"
+            }
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            TEXTURE2D(_BakedCountriesColor);
+            SAMPLER(sampler_BakedCountriesColor);
+
+            TEXTURE2D(_BakedCountriesColorBlur);
+            SAMPLER(sampler_BakedCountriesColorBlur);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float _Tess;
+                float _Displacement;
+                float4 _MarkerSettings;
+                float4 _ChunkRect;
+                float4 _BakeTargetCountryColor;
+            CBUFFER_END
+
+            struct Attributes {
+                float4 vertex : POSITION;
+                float4 tangent : TANGENT;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings {
+                float4 color : COLOR;
+                float3 normal : NORMAL;
+                float4 vertex : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float3 posWS: TEXCOORD1;
+            };
+
+            Varyings vert(Attributes i) {
+                Varyings o = (Varyings)0;
+                o.vertex = TransformObjectToHClip(i.vertex.xyz);
+                o.uv = TRANSFORM_TEX(i.uv, _MainTex);
+                return o;
+            }
+
+            half4 frag(Varyings i) : SV_TARGET {
+                half4 color = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, i.uv);
+                half4 blur = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, i.uv);
+                blur.a *= color.a;
+                return blur;
+            }
+
+            ENDHLSL
+        }
+
+        Pass {
+            Name "BakeCountriesColorBlurCombinePass" // 专门用于烘焙的Pass
+            Tags {
+                "LightMode" = "Meta"
+            }
+
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            TEXTURE2D(_BakedCountriesColorBlur);
+            SAMPLER(sampler_BakedCountriesColorBlur);
+
+            TEXTURE2D(_BakedCountriesColorBlurCombine);
+            SAMPLER(sampler_BakedCountriesColorBlurCombine);
+
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float _Tess;
+                float _Displacement;
+                float4 _MarkerSettings;
+                float4 _ChunkRect;
+                float4 _BakeTargetCountryColor;
+            CBUFFER_END
+
+            struct Attributes {
+                float4 vertex : POSITION;
+                float4 tangent : TANGENT;
+                float3 normal : NORMAL;
+                float2 uv : TEXCOORD0;
+                float4 color : COLOR;
+            };
+
+            struct Varyings {
+                float4 color : COLOR;
+                float3 normal : NORMAL;
+                float4 vertex : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                float3 posWS: TEXCOORD1;
+            };
+
+            Varyings vert(Attributes i) {
+                Varyings o = (Varyings)0;
+                o.vertex = TransformObjectToHClip(i.vertex.xyz);
+                o.uv = TRANSFORM_TEX(i.uv, _MainTex);
+                return o;
+            }
+
+            half4 frag(Varyings i) : SV_TARGET {
+                half4 c0 = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, i.uv);
+                half4 c1 = SAMPLE_TEXTURE2D(_BakedCountriesColorBlurCombine, sampler_BakedCountriesColorBlurCombine, i.uv);
+                half4 c = lerp(c0, c1, c1.a);
+                if (c.a < 0.5) {
+                    discard;
+                }
+                c.rgb /= c.a;
+                return c;
+            }
+
             ENDHLSL
         }
     }

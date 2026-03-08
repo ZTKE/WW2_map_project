@@ -48,6 +48,9 @@ namespace HoneyFramework {
         Chunk currentChunk;
         bool baking = false;
 
+        int halfSize = 256; // Chunk.TextureSize >> 1;
+        Color32[] clearColorsHalfSize;
+
         /// <summary>
         /// Check all core assets are in place
         /// </summary>
@@ -77,6 +80,9 @@ namespace HoneyFramework {
             ;
 
             randomIndex = Random.Range(0, int.MaxValue);
+
+            halfSize = Chunk.TextureSize >> 1;
+            clearColorsHalfSize = new Color32[halfSize * halfSize];
         }
 
         /// <summary>
@@ -299,6 +305,24 @@ namespace HoneyFramework {
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
 
+                texture = new Texture2D(halfSize, halfSize, TextureFormat.ARGB32, false);
+                texture.wrapMode = TextureWrapMode.Clamp;
+                texture.name = "BakedCountryColor" + currentChunk.position;
+                texture.SetPixels32(clearColorsHalfSize);
+                texture.Apply();
+                currentChunk.bakedCountriesColor = texture;
+
+                if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
+
+                texture = new Texture2D(halfSize, halfSize, TextureFormat.ARGB32, false);
+                texture.wrapMode = TextureWrapMode.Clamp;
+                texture.name = "BakedCountryColorBlur" + currentChunk.position;
+                texture.SetPixels32(clearColorsHalfSize);
+                texture.Apply();
+                currentChunk.bakedCountriesColorBlur = texture;
+
+                if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
+
                 bakingCamera.targetTexture = null;
                 currentChunk.CreateGameObjectWithTextures();
                 dirtyChunks.RemoveAt(0);
@@ -307,7 +331,6 @@ namespace HoneyFramework {
                 RenderTargetManager.ReleaseAll();
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
-
             }
 
             if (World.GetInstance().StartPolishingWorld()) {
@@ -743,12 +766,106 @@ namespace HoneyFramework {
             RenderTargetManager.ReleaseTexture(rt);
         }
 
-        // 烘焙国家颜色贴图
-        public void BakeChunkCountriesColor(Chunk chunk, ref RenderTexture rt, in Texture2D data) {
-            // 1. 
+        // 烘焙区块国家颜色贴图
+        private readonly int idCountriesColorData = Shader.PropertyToID("_CountriesColorData");
+        private readonly int idChunkRect = Shader.PropertyToID("_ChunkRect");
+        private readonly int idBakeTargetCountryColor = Shader.PropertyToID("_BakeTargetCountryColor");
+        private readonly int idBakedCountriesColor = Shader.PropertyToID("_BakedCountriesColor");
+        private readonly int idBakedCountriesColorBlur = Shader.PropertyToID("_BakedCountriesColorBlur");
+        private readonly int idBakedCountriesColorBlurCombine = Shader.PropertyToID("_BakedCountriesColorBlurCombine");
+        private int idBakeCountriesColorPass = -1;
+        private int idBakeCountriesColorBlurPass = -1;
+        private int idBakeCountriesColorBlurCombinePass = -1;
+        public void BakeChunkCountriesColor(Chunk chunk, ref Texture2D texColor, ref Texture2D texBlur, in Texture2D data) {
+            // 材质准备
+            Material mat = chunk.chunkMaterial;
+            Rect rect = chunk.GetRect();
+            Vector4 rectV4 = new Vector4(rect.center.x, rect.center.y, rect.width, rect.height);
+            if (idBakeCountriesColorPass < 0) {
+                idBakeCountriesColorPass = mat.FindPass("BakeCountriesColorPass".ToUpper());
+            }
+            if (idBakeCountriesColorBlurPass < 0) {
+                idBakeCountriesColorBlurPass = mat.FindPass("BakeCountriesColorBlurPass".ToUpper());
+            }
+            if (idBakeCountriesColorBlurCombinePass < 0) {
+                idBakeCountriesColorBlurCombinePass = mat.FindPass("BakeCountriesColorBlurCombinePass".ToUpper());
+            }
+            mat.SetTexture(idCountriesColorData, data);
+            mat.SetVector(idChunkRect, rectV4);
 
-            //Vector2 uv = chunk.GetWorldToUV(chunk.chunkObject.transform.position);
-            //Debug.Log(uv);
+            // RT配置准备
+            int size = halfSize;
+            int depth = 32;
+            RenderTextureFormat format = RenderTextureFormat.ARGB32;
+
+            // 烘焙颜色
+            {
+                RenderTexture rt0 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                RenderTexture rt1 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+
+                mat.SetVector(idBakeTargetCountryColor, Color.clear);
+                Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
+
+                RenderTexture.active = rt1;
+                texColor.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                texColor.Apply();
+                RenderTexture.active = null;
+
+                rt1.Release();
+                rt0.Release();
+            }
+
+            // 烘焙模糊效果, 用于制作边界线
+            {
+                RenderTexture rtBlur = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                HashSet<Color> countryColors = HexMarkers.GetCountryColors();
+
+                mat.SetTexture(idBakedCountriesColorBlurCombine, rtBlur);
+                foreach (Color targetColor in countryColors) {
+                    // 0. 创建临时RT
+                    RenderTexture rt0 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                    RenderTexture rt1 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                    RenderTexture rt2 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                    RenderTexture rt3 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+
+                    // 1. 用区块的烘焙pass进行国家颜色贴图烘焙
+                    mat.SetVector(idBakeTargetCountryColor, targetColor);
+                    Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
+
+                    // 2. 应用临时贴图RT
+                    Graphics.Blit(rt1, rt2);
+                    mat.SetTexture(idBakedCountriesColor, rt2);
+
+                    // 3. 模糊处理
+                    BlurTexture(rt1, 1, 1, 6);
+                    mat.SetTexture(idBakedCountriesColorBlur, rt1);
+                    Graphics.Blit(rt1, rt0, mat, idBakeCountriesColorBlurPass);
+
+                    // 4. 融合所有不同颜色模糊效果
+                    mat.SetTexture(idBakedCountriesColorBlur, rt0);
+                    Graphics.Blit(rt0, rt3, mat, idBakeCountriesColorBlurCombinePass);
+                    Graphics.Blit(rt3, rtBlur);
+
+                    // 5. 释放
+                    rt3.Release();
+                    rt2.Release();
+                    rt1.Release();
+                    rt0.Release();
+                }
+                mat.SetTexture(idBakedCountriesColorBlurCombine, null);
+
+                // 最终应用贴图
+                RenderTexture.active = rtBlur;
+                texBlur.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                texBlur.Apply();
+                RenderTexture.active = null;
+
+                // 释放
+                rtBlur.Release();
+            }
+
+            mat.SetTexture(idBakedCountriesColor, texColor);
+            mat.SetTexture(idBakedCountriesColorBlur, texBlur);
         }
     }
 }
