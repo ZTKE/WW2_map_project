@@ -48,8 +48,8 @@ namespace HoneyFramework {
         Chunk currentChunk;
         bool baking = false;
 
-        int halfSize = 256; // Chunk.TextureSize >> 1;
-        Color32[] clearColorsHalfSize;
+        int bakeSize = 256; // Chunk.TextureSize;
+        Color32[] clearColors;
 
         /// <summary>
         /// Check all core assets are in place
@@ -81,8 +81,8 @@ namespace HoneyFramework {
 
             randomIndex = Random.Range(0, int.MaxValue);
 
-            halfSize = Chunk.TextureSize >> 1;
-            clearColorsHalfSize = new Color32[halfSize * halfSize];
+            bakeSize = Chunk.TextureSize;
+            clearColors = new Color32[bakeSize * bakeSize];
         }
 
         /// <summary>
@@ -305,19 +305,19 @@ namespace HoneyFramework {
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
 
-                texture = new Texture2D(halfSize, halfSize, TextureFormat.ARGB32, false);
+                texture = new Texture2D(bakeSize, bakeSize, TextureFormat.ARGB32, false);
                 texture.wrapMode = TextureWrapMode.Clamp;
                 texture.name = "BakedCountryColor" + currentChunk.position;
-                texture.SetPixels32(clearColorsHalfSize);
+                texture.SetPixels32(clearColors);
                 texture.Apply();
                 currentChunk.bakedCountriesColor = texture;
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
 
-                texture = new Texture2D(halfSize, halfSize, TextureFormat.ARGB32, false);
+                texture = new Texture2D(bakeSize, bakeSize, TextureFormat.ARGB32, false);
                 texture.wrapMode = TextureWrapMode.Clamp;
                 texture.name = "BakedCountryColorBlur" + currentChunk.position;
-                texture.SetPixels32(clearColorsHalfSize);
+                texture.SetPixels32(clearColors);
                 texture.Apply();
                 currentChunk.bakedCountriesColorBlur = texture;
 
@@ -794,7 +794,7 @@ namespace HoneyFramework {
             mat.SetVector(idChunkRect, rectV4);
 
             // RT配置准备
-            int size = halfSize;
+            int size = bakeSize;
             int depth = 32;
             RenderTextureFormat format = RenderTextureFormat.ARGB32;
 

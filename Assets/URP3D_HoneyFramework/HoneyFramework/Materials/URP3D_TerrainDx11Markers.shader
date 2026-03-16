@@ -290,8 +290,9 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 3); // 4th marker layer
 
-                half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, i.uv);
-                half4 bakedCountriesColorBlur = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, i.uv);
+                float2 uvBake = (i.uv - 0.5) * 0.5 + 0.5;
+                half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, uvBake);
+                half4 bakedCountriesColorBlur = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, uvBake);
 
                 float err = length(bakedCountriesColor - bakedCountriesColorBlur);
                 bakedCountriesColor.a -= saturate(1.0 - err * 2.0) * 0.9;
@@ -638,7 +639,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             }
 
             half4 frag(Varyings i) : SV_TARGET {
-                float2 pos = _ChunkRect.xy + (0.5 - i.uv) * _ChunkRect.zw; // float2(i.posWS.x, i.posWS.z);
+                float2 pos = _ChunkRect.xy + (0.5 - i.uv) * _ChunkRect.zw * 2.0; // 居中, 然后*2.0扩大读取范围
                 Vector3i v = GetHexCoord(pos);
                 float2 uv = float2((v.x + 0.5) / _MarkerSettings.z, (v.y + 0.5) / _MarkerSettings.z);
                 half4 col = SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
