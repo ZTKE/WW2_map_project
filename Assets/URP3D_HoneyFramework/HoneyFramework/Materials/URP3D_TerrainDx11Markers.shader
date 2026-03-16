@@ -290,7 +290,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 2); // 3rd marker layer
                 c = DrawMarkerLayer(c, v, dataType, dataAngle, 3); // 4th marker layer
 
-                float2 uvBake = (i.uv - 0.5) * 0.5 + 0.5;
+                float2 uvBake = (i.uv - 0.5) * 0.5 + 0.5; // 烘焙的uv是原来uv的两倍大小, 需要居中缩放
                 half4 bakedCountriesColor = SAMPLE_TEXTURE2D(_BakedCountriesColor, sampler_BakedCountriesColor, uvBake);
                 half4 bakedCountriesColorBlur = SAMPLE_TEXTURE2D(_BakedCountriesColorBlur, sampler_BakedCountriesColorBlur, uvBake);
 
@@ -299,7 +299,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 bakedCountriesColor.rgb -= smoothstep(0.4, 0.45, err) * 0.4;
                 bakedCountriesColor = saturate(bakedCountriesColor);
 
-                float t = 1.0; // lerp(0.1, 1.0, (sin(_Time.y * PI) + 1.0) * 0.5);
+                float t = lerp(0.3, 1.0, (sin(_Time.y * PI) + 1.0) * 0.5);
                 c.rgb = lerp(c.rgb, bakedCountriesColor.rgb, bakedCountriesColor.a * t);
 
                 half4 albedo = half4(c.rgb, 1.0);
