@@ -551,7 +551,7 @@ namespace HoneyFramework {
 
         public void BakeCountryColor() {
             // 准备烘焙国家颜色贴图
-            WorldOven.GetInstance().BakeChunkCountriesColor(this, ref bakedCountriesColor, ref bakedCountriesColorBlur, HexMarkers.instance.GetHexDataForCountries());
+            WorldOven.GetInstance().CmdBufBakeChunkCountriesColor(this, ref bakedCountriesColor, ref bakedCountriesColorBlur, HexMarkers.instance.GetHexDataForCountries());
             countryColorIsDirty = false;
         }
     }

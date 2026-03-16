@@ -1,7 +1,9 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
+//using System.Drawing;
 using System.Linq;
+using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace HoneyFramework {
     /*
@@ -753,21 +755,30 @@ namespace HoneyFramework {
             RenderTargetManager.ReleaseTexture(rt);
         }
 
-        // 烘焙区块国家颜色贴图
+        // 烘焙区块国家颜色贴图所需属性
         private readonly int idCountriesColorData = Shader.PropertyToID("_CountriesColorData");
         private readonly int idChunkRect = Shader.PropertyToID("_ChunkRect");
         private readonly int idBakeTargetCountryColor = Shader.PropertyToID("_BakeTargetCountryColor");
         private readonly int idBakedCountriesColor = Shader.PropertyToID("_BakedCountriesColor");
         private readonly int idBakedCountriesColorBlur = Shader.PropertyToID("_BakedCountriesColorBlur");
         private readonly int idBakedCountriesColorBlurCombine = Shader.PropertyToID("_BakedCountriesColorBlurCombine");
+        private readonly int idRt0 = Shader.PropertyToID("_TempRT0");
+        private readonly int idRt1 = Shader.PropertyToID("_TempRT1");
+        private readonly int idRt2 = Shader.PropertyToID("_TempRT2");
+        private readonly int idRt3 = Shader.PropertyToID("_TempRT3");
+        private readonly int idRtBlur = Shader.PropertyToID("_TempRTBlur");
+        private readonly int idDownsampledBlurRt = Shader.PropertyToID("_DownsampledBlurRT");
+        private readonly int idRtAppendBlur = Shader.PropertyToID("_TempBlurRT");
         private int idBakeCountriesColorPass = -1;
         private int idBakeCountriesColorBlurPass = -1;
         private int idBakeCountriesColorBlurCombinePass = -1;
-        public void BakeChunkCountriesColor(Chunk chunk, ref RenderTexture texColor, ref RenderTexture texBlur, in Texture2D data) {
-            // 材质准备
+
+        // 烘焙区块国家颜色贴图
+        public void CmdBufBakeChunkCountriesColor(Chunk chunk, ref RenderTexture texColor, ref RenderTexture texBlur, in Texture2D data) {
             Material mat = chunk.chunkMaterial;
             Rect rect = chunk.GetRect();
             Vector4 rectV4 = new Vector4(rect.center.x, rect.center.y, rect.width, rect.height);
+
             if (idBakeCountriesColorPass < 0) {
                 idBakeCountriesColorPass = mat.FindPass("BakeCountriesColorPass".ToUpper());
             }
@@ -777,75 +788,137 @@ namespace HoneyFramework {
             if (idBakeCountriesColorBlurCombinePass < 0) {
                 idBakeCountriesColorBlurCombinePass = mat.FindPass("BakeCountriesColorBlurCombinePass".ToUpper());
             }
-            mat.SetTexture(idCountriesColorData, data);
-            mat.SetVector(idChunkRect, rectV4);
 
-            // RT配置准备
             int size = bakeSize;
             int depth = 32;
             RenderTextureFormat format = RenderTextureFormat.ARGB32;
 
-            // 烘焙颜色
-            {
-                RenderTexture rt0 = RenderTargetManager.GetNewTexture(size, size, depth, format);
-                RenderTexture rt1 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+            // 清除材质属性
+            mat.SetTexture(idBakedCountriesColor, null);
+            mat.SetTexture(idBakedCountriesColorBlur, null);
 
-                mat.SetVector(idBakeTargetCountryColor, Color.clear);
-                Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
-                Graphics.Blit(rt1, texColor);
+            CommandBuffer cmd = CommandBufferPool.Get("BakeChunkCountriesColor");
+            try {
+                // 基础色烘焙
+                {
+                    cmd.SetGlobalTexture(idCountriesColorData, data);
+                    cmd.SetGlobalVector(idChunkRect, rectV4);
 
-                rt1.Release();
-                rt0.Release();
-            }
+                    cmd.GetTemporaryRT(idRt0, size, size, depth, FilterMode.Bilinear, format);
+                    cmd.GetTemporaryRT(idRt1, size, size, depth, FilterMode.Bilinear, format);
 
-            // 烘焙模糊效果, 用于制作边界线
-            {
-                RenderTexture rtBlur = RenderTargetManager.GetNewTexture(size, size, depth, format);
-                HashSet<Color> countryColors = HexMarkers.GetCountryColors();
+                    // 确保是空白图
+                    cmd.SetRenderTarget(idRt0);
+                    cmd.ClearRenderTarget(true, true, Color.clear);
+                    cmd.SetRenderTarget(idRt1);
+                    cmd.ClearRenderTarget(true, true, Color.clear);
 
-                mat.SetTexture(idBakedCountriesColorBlurCombine, rtBlur);
-                foreach (Color targetColor in countryColors) {
-                    // 0. 创建临时RT
-                    RenderTexture rt0 = RenderTargetManager.GetNewTexture(size, size, depth, format);
-                    RenderTexture rt1 = RenderTargetManager.GetNewTexture(size, size, depth, format);
-                    RenderTexture rt2 = RenderTargetManager.GetNewTexture(size, size, depth, format);
-                    RenderTexture rt3 = RenderTargetManager.GetNewTexture(size, size, depth, format);
+                    cmd.SetGlobalVector(idBakeTargetCountryColor, Color.clear);
 
-                    // 1. 用区块的烘焙pass进行国家颜色贴图烘焙
-                    mat.SetVector(idBakeTargetCountryColor, targetColor);
-                    Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
+                    cmd.Blit(idRt0, idRt1, mat, idBakeCountriesColorPass);
+                    cmd.Blit(idRt1, texColor);
 
-                    // 2. 应用临时贴图RT
-                    Graphics.Blit(rt1, rt2);
-                    mat.SetTexture(idBakedCountriesColor, rt2);
-
-                    // 3. 模糊处理
-                    BlurTexture(rt1, 1, 1, 6);
-                    mat.SetTexture(idBakedCountriesColorBlur, rt1);
-                    Graphics.Blit(rt1, rt0, mat, idBakeCountriesColorBlurPass);
-
-                    // 4. 融合所有不同颜色模糊效果
-                    mat.SetTexture(idBakedCountriesColorBlur, rt0);
-                    Graphics.Blit(rt0, rt3, mat, idBakeCountriesColorBlurCombinePass);
-                    Graphics.Blit(rt3, rtBlur);
-
-                    // 5. 释放
-                    rt3.Release();
-                    rt2.Release();
-                    rt1.Release();
-                    rt0.Release();
+                    cmd.ReleaseTemporaryRT(idRt0);
+                    cmd.ReleaseTemporaryRT(idRt1);
                 }
-                mat.SetTexture(idBakedCountriesColorBlurCombine, null);
 
-                // 最终应用贴图
-                Graphics.Blit(rtBlur, texBlur);
+                // 模糊烘焙
+                {
+                    cmd.GetTemporaryRT(idRtBlur, size, size, depth, FilterMode.Bilinear, format);
+                    cmd.SetGlobalTexture(idBakedCountriesColorBlurCombine, Texture2D.blackTexture);
 
-                // 释放
-                rtBlur.Release();
+                    HashSet<Color> countryColors = HexMarkers.GetCountryColors();
+                    foreach (Color targetColor in countryColors) {
+                        // 为每个国家分配临时纹理
+                        cmd.GetTemporaryRT(idRt0, size, size, depth, FilterMode.Bilinear, format);
+                        cmd.GetTemporaryRT(idRt1, size, size, depth, FilterMode.Bilinear, format);
+                        cmd.GetTemporaryRT(idRt2, size, size, depth, FilterMode.Bilinear, format);
+                        cmd.GetTemporaryRT(idRt3, size, size, depth, FilterMode.Bilinear, format);
+
+                        // 确保是空白图
+                        cmd.SetRenderTarget(idRt0);
+                        cmd.ClearRenderTarget(true, true, Color.clear);
+                        cmd.SetRenderTarget(idRt1);
+                        cmd.ClearRenderTarget(true, true, Color.clear);
+                        cmd.SetRenderTarget(idRt2);
+                        cmd.ClearRenderTarget(true, true, Color.clear);
+                        cmd.SetRenderTarget(idRt3);
+                        cmd.ClearRenderTarget(true, true, Color.clear);
+
+                        // 1. 生成当前国家的颜色掩码
+                        cmd.SetGlobalVector(idBakeTargetCountryColor, targetColor);
+                        cmd.Blit(idRt0, idRt1, mat, idBakeCountriesColorPass);
+
+                        // 2. 保存未模糊的掩码副本，并设置到全局
+                        cmd.Blit(idRt1, idRt2);
+                        cmd.SetGlobalTexture(idBakedCountriesColor, idRt2);
+
+                        // 3. 对掩码进行模糊
+                        CmdBufAppendBlur(cmd, idRt1, 1, 1, 6);
+                        cmd.SetGlobalTexture(idBakedCountriesColorBlur, idRt1);
+                        cmd.Blit(idRt1, idRt0, mat, idBakeCountriesColorBlurPass);
+
+                        // 4. 融合当前国家的模糊结果到总模糊纹理
+                        cmd.SetGlobalTexture(idBakedCountriesColorBlur, idRt0);
+                        cmd.Blit(idRt0, idRt3, mat, idBakeCountriesColorBlurCombinePass);
+                        cmd.Blit(idRt3, idRtBlur);
+                        cmd.SetGlobalTexture(idBakedCountriesColorBlurCombine, idRtBlur);
+
+                        // 释放当前国家的临时纹理
+                        cmd.ReleaseTemporaryRT(idRt0);
+                        cmd.ReleaseTemporaryRT(idRt1);
+                        cmd.ReleaseTemporaryRT(idRt2);
+                        cmd.ReleaseTemporaryRT(idRt3);
+                    }
+
+                    // 将累积的模糊结果拷贝到目标纹理
+                    cmd.Blit(idRtBlur, texBlur);
+
+                    // 清理
+                    cmd.ReleaseTemporaryRT(idRtBlur);
+                }
+
+                // 执行CommandBuffer
+                Graphics.ExecuteCommandBuffer(cmd);
+            } finally {
+                CommandBufferPool.Release(cmd);
             }
 
             mat.SetTexture(idBakedCountriesColor, texColor);
             mat.SetTexture(idBakedCountriesColorBlur, texBlur);
+        }
+
+        // 附加模糊命令
+        private void CmdBufAppendBlur(CommandBuffer cmd, int sourceId, int downSample, int size, int iterations) {
+            if (blurMaterial == null) {
+                Debug.LogError("Blur material not assigned!");
+                return;
+            }
+
+            float widthMod = 1.0f / (1 << downSample);
+            int blurredW = bakeSize >> downSample;
+            int blurredH = bakeSize >> downSample;
+
+            cmd.GetTemporaryRT(idDownsampledBlurRt, blurredW, blurredH, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32);
+            cmd.GetTemporaryRT(idRtAppendBlur, blurredW, blurredH, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32);
+
+            cmd.SetGlobalVector("_Parameter", new Vector4(size * widthMod, -size * widthMod, 0, 0));
+            cmd.Blit(sourceId, idDownsampledBlurRt, blurMaterial, 0);
+
+            for (int i = 0; i < iterations; i++) {
+                float iterationOffs = i * 1.0f;
+                Vector4 param = new Vector4(
+                    size * widthMod + iterationOffs,
+                    -size * widthMod - iterationOffs,
+                    0, 0);
+                cmd.SetGlobalVector("_Parameter", param);
+                cmd.Blit(idDownsampledBlurRt, idRtAppendBlur, blurMaterial, 1);
+                cmd.Blit(idRtAppendBlur, idDownsampledBlurRt, blurMaterial, 2);
+            }
+
+            cmd.Blit(idDownsampledBlurRt, sourceId);
+            cmd.ReleaseTemporaryRT(idDownsampledBlurRt);
+            cmd.ReleaseTemporaryRT(idRtAppendBlur);
         }
     }
 }

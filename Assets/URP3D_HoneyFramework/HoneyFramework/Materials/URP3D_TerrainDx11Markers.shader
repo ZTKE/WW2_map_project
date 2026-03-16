@@ -14,14 +14,13 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
         //                   marker data width hex count, <- expected to be square for height
         //                   marker hex data size, <- number of following pixels of data for each hex
         _MarkerSettings ("Marker Settings", Vector) = (8, 8, 64, 2)
+
         // 国家颜色数据不需要_MarkerSettings.w, 也就是默认是64*64的RT贴图
         _CountriesColorData ("Countries Color Data", 2D) = "clear" {}
+
+        // 国家颜色烘焙结果贴图
         _BakedCountriesColor ("Baked Countries Color", 2D) = "clear" {}
         _BakedCountriesColorBlur ("Baked Countries Color Blur", 2D) = "clear" {}
-
-        [HideInInspector] _BakedCountriesColorBlurCombine ("Baked Countries Color Blur Combine", 2D) = "clear" {}
-        [HideInInspector] _BakeTargetCountryColor ("Bake Target Country Color", Color) = (0.0, 0.0, 0.0, 0.0)
-        [HideInInspector] _ChunkRect ("Chunk Rect", Vector) = (0.0, 0.0, 0.0, 0.0)
     }
 
     SubShader {
@@ -82,8 +81,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
-                float4 _ChunkRect;
-                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -429,8 +426,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
-                float4 _ChunkRect;
-                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -544,13 +539,14 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             TEXTURE2D(_CountriesColorData);
             SAMPLER(sampler_CountriesColorData);
 
+            float4 _ChunkRect;
+            float4 _BakeTargetCountryColor;
+
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
-                float4 _ChunkRect;
-                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -643,9 +639,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 Vector3i v = GetHexCoord(pos);
                 float2 uv = float2((v.x + 0.5) / _MarkerSettings.z, (v.y + 0.5) / _MarkerSettings.z);
                 half4 col = SAMPLE_TEXTURE2D(_CountriesColorData, sampler_CountriesColorData, uv);
-                if (col.a < 0.01) {
-                    discard;
-                }
                 if (_BakeTargetCountryColor.a < 0.01) {
                     return col;
                 }
@@ -684,8 +677,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
-                float4 _ChunkRect;
-                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -747,8 +738,6 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 float _Tess;
                 float _Displacement;
                 float4 _MarkerSettings;
-                float4 _ChunkRect;
-                float4 _BakeTargetCountryColor;
             CBUFFER_END
 
             struct Attributes {
@@ -779,7 +768,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 half4 c1 = SAMPLE_TEXTURE2D(_BakedCountriesColorBlurCombine, sampler_BakedCountriesColorBlurCombine, i.uv);
                 half4 c = lerp(c0, c1, c1.a);
                 if (c.a < 0.5) {
-                    discard;
+                    return 0.0;
                 }
                 c.rgb /= c.a;
                 return c;
