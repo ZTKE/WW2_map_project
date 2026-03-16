@@ -15,6 +15,7 @@ namespace HoneyFramework
         public int antiAliasing;
         public RenderTexture texture;
         public bool inUse;
+        public bool dontRelease;
 
         public RenderTarget(int w, int h) : this(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1) { }
 
@@ -54,9 +55,9 @@ namespace HoneyFramework
         /// <param name="w"></param>
         /// <param name="h"></param>
         /// <returns></returns>
-        static public RenderTexture GetNewTexture(int w, int h)
+        static public RenderTexture GetNewTexture(int w, int h, bool dontRelease = false)
         {
-            return GetNewTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1);
+            return GetNewTexture(w, h, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1, dontRelease);
         }
 
         /// <summary>
@@ -67,9 +68,9 @@ namespace HoneyFramework
         /// <param name="depth"></param>
         /// <param name="f"></param>
         /// <returns></returns>
-        static public RenderTexture GetNewTexture(int w, int h, int depth, RenderTextureFormat f)
+        static public RenderTexture GetNewTexture(int w, int h, int depth, RenderTextureFormat f, bool dontRelease = false)
         {
-            return GetNewTexture(w, h, depth, f, RenderTextureReadWrite.Default, 1);
+            return GetNewTexture(w, h, depth, f, RenderTextureReadWrite.Default, 1, dontRelease);
         }
 
         /// <summary>
@@ -82,7 +83,7 @@ namespace HoneyFramework
         /// <param name="s"></param>
         /// <param name="aa"></param>
         /// <returns></returns>
-        static public RenderTexture GetNewTexture(int w, int h, int depth, RenderTextureFormat f, RenderTextureReadWrite s, int aa)
+        static public RenderTexture GetNewTexture(int w, int h, int depth, RenderTextureFormat f, RenderTextureReadWrite s, int aa, bool dontRelease = false)
         {
             RenderTarget rt = GetInstance().textures.Find(o => (
                                                 !o.inUse && 
@@ -102,6 +103,7 @@ namespace HoneyFramework
             }
 
             rt.inUse = true;
+            rt.dontRelease = dontRelease;
 
             return rt.texture;
         }
@@ -129,7 +131,9 @@ namespace HoneyFramework
             List<RenderTarget> targets = GetInstance().textures;
             foreach (RenderTarget rt in targets)
             {
-                rt.inUse = false;
+                if (rt.dontRelease == false) {
+                    rt.inUse = false;
+                }
             }
         }
 
@@ -160,7 +164,7 @@ namespace HoneyFramework
                 GameObject.Destroy(rt.texture);
             }
 
-            GetInstance().textures.RemoveAll(o => !o.inUse);
+            GetInstance().textures.RemoveAll(o => !o.inUse && !o.dontRelease);
             if (GetInstance().textures.Count == 0)
             {
                 GetInstance().textures.Clear();

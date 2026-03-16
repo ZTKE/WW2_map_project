@@ -305,21 +305,8 @@ namespace HoneyFramework {
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
 
-                texture = new Texture2D(bakeSize, bakeSize, TextureFormat.ARGB32, false);
-                texture.wrapMode = TextureWrapMode.Clamp;
-                texture.name = "BakedCountryColor" + currentChunk.position;
-                texture.SetPixels32(clearColors);
-                texture.Apply();
-                currentChunk.bakedCountriesColor = texture;
-
-                if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
-
-                texture = new Texture2D(bakeSize, bakeSize, TextureFormat.ARGB32, false);
-                texture.wrapMode = TextureWrapMode.Clamp;
-                texture.name = "BakedCountryColorBlur" + currentChunk.position;
-                texture.SetPixels32(clearColors);
-                texture.Apply();
-                currentChunk.bakedCountriesColorBlur = texture;
+                currentChunk.bakedCountriesColor = RenderTargetManager.GetNewTexture(bakeSize, bakeSize, 32, RenderTextureFormat.ARGB32, dontRelease: true);
+                currentChunk.bakedCountriesColorBlur = RenderTargetManager.GetNewTexture(bakeSize, bakeSize, 32, RenderTextureFormat.ARGB32, dontRelease: true);
 
                 if (CoroutineHelper.CheckIfPassed(30)) { yield return null; CoroutineHelper.StartTimer(); }
 
@@ -776,7 +763,7 @@ namespace HoneyFramework {
         private int idBakeCountriesColorPass = -1;
         private int idBakeCountriesColorBlurPass = -1;
         private int idBakeCountriesColorBlurCombinePass = -1;
-        public void BakeChunkCountriesColor(Chunk chunk, ref Texture2D texColor, ref Texture2D texBlur, in Texture2D data) {
+        public void BakeChunkCountriesColor(Chunk chunk, ref RenderTexture texColor, ref RenderTexture texBlur, in Texture2D data) {
             // 材质准备
             Material mat = chunk.chunkMaterial;
             Rect rect = chunk.GetRect();
@@ -806,10 +793,11 @@ namespace HoneyFramework {
                 mat.SetVector(idBakeTargetCountryColor, Color.clear);
                 Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
 
-                RenderTexture.active = rt1;
-                texColor.ReadPixels(new Rect(0, 0, size, size), 0, 0);
-                texColor.Apply();
-                RenderTexture.active = null;
+                //RenderTexture.active = rt1;
+                //texColor.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                //texColor.Apply();
+                //RenderTexture.active = null;
+                Graphics.Blit(rt1, texColor);
 
                 rt1.Release();
                 rt0.Release();
@@ -855,10 +843,11 @@ namespace HoneyFramework {
                 mat.SetTexture(idBakedCountriesColorBlurCombine, null);
 
                 // 最终应用贴图
-                RenderTexture.active = rtBlur;
-                texBlur.ReadPixels(new Rect(0, 0, size, size), 0, 0);
-                texBlur.Apply();
-                RenderTexture.active = null;
+                //RenderTexture.active = rtBlur;
+                //texBlur.ReadPixels(new Rect(0, 0, size, size), 0, 0);
+                //texBlur.Apply();
+                //RenderTexture.active = null;
+                Graphics.Blit(rtBlur, texBlur);
 
                 // 释放
                 rtBlur.Release();

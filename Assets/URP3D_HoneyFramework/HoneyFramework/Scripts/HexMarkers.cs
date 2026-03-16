@@ -229,6 +229,7 @@ namespace HoneyFramework {
             dirty = true;
         }
 
+        public List<Vector3i> countryColorDirtyList = new List<Vector3i>();
         public void SetCountryColorBase(Vector3i position, Color color) {
             // convert position to texture space index
             int x = position.x;
@@ -238,6 +239,7 @@ namespace HoneyFramework {
             if (y < 0) { y = textureMapSize + y; }
 
             hexDataForCountries.SetPixel(x, y, color);
+            countryColorDirtyList.Add(position);
             if (color.a > 0.01) {
                 countryColors.Add(color);
             }
@@ -254,13 +256,28 @@ namespace HoneyFramework {
                     hexDataForCountries.Apply();
                 }
 
-                foreach (KeyValuePair<Vector2i, Chunk> pair in World.instance.chunks) {
-                    pair.Value.SetMarkerMaterials();
-                    // 暂时先将所有区块的国家颜色渲染都设置为脏数据
-                    if (dirtyForCountries) {
-                        pair.Value.countryColorIsDirty = true;
+                // 按九宫格标记脏数据 (还能进一步优化成1~4个标记, 而不是9个标记)
+                foreach (Vector3i p in countryColorDirtyList) {
+                    Vector3 wp = HexCoordinates.HexToWorld3D(p);
+                    Chunk c = Chunk.WorldToChunk(wp);
+                    Vector2i cp = c.position;
+                    for (int x = cp.x - 1; x <= cp.x + 1; ++x) {
+                        for (int y = cp.y - 1; y <= cp.y + 1; ++y) {
+                            if (World.instance.chunks.TryGetValue(new Vector2i(x, y), out Chunk co)) {
+                                co.countryColorIsDirty = true;
+                            }
+                        }
                     }
                 }
+                countryColorDirtyList.Clear();
+
+                foreach (KeyValuePair<Vector2i, Chunk> kv in World.instance.chunks) {
+                    kv.Value.SetMarkerMaterials();
+                    if (kv.Value.countryColorIsDirty) {
+                        kv.Value.BakeCountryColor();
+                    }
+                }
+
                 dirty = false;
                 dirtyForCountries = false;
             }

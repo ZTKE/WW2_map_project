@@ -27,8 +27,8 @@ namespace HoneyFramework {
         public Texture2D diffuse;
         public Texture2D height;
         public Texture2D shadows;
-        public Texture2D bakedCountriesColor; // 烘焙好的颜色贴图
-        public Texture2D bakedCountriesColorBlur; // 烘焙好的颜色贴图
+        public RenderTexture bakedCountriesColor; // 烘焙好的颜色贴图
+        public RenderTexture bakedCountriesColorBlur; // 烘焙好的颜色贴图
 
         public List<Texture2D> texturesForCleanup = new List<Texture2D>();
 
@@ -46,17 +46,17 @@ namespace HoneyFramework {
         public bool heightCompressed;
 
         // 是否为脏数据, 如果为脏数据则需要重新烘焙颜色贴图
-        public bool countryColorIsDirty {
-            get => _countryColorIsDirty;
-            set {
-                _countryColorIsDirty = value;
-                if (value) {
-                    BakeCountryColor();
-                }
-            }
-        }
+        //public bool countryColorIsDirty {
+        //    get => _countryColorIsDirty;
+        //    set {
+        //        _countryColorIsDirty = value;
+        //        if (value) {
+        //            BakeCountryColor();
+        //        }
+        //    }
+        //}
 
-        private bool _countryColorIsDirty;
+        public bool countryColorIsDirty;
 
         /// <summary>
         /// Deserialization constructor to match serialization protocol
