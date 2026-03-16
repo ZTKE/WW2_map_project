@@ -792,11 +792,6 @@ namespace HoneyFramework {
 
                 mat.SetVector(idBakeTargetCountryColor, Color.clear);
                 Graphics.Blit(rt0, rt1, mat, idBakeCountriesColorPass);
-
-                //RenderTexture.active = rt1;
-                //texColor.ReadPixels(new Rect(0, 0, size, size), 0, 0);
-                //texColor.Apply();
-                //RenderTexture.active = null;
                 Graphics.Blit(rt1, texColor);
 
                 rt1.Release();
@@ -843,10 +838,6 @@ namespace HoneyFramework {
                 mat.SetTexture(idBakedCountriesColorBlurCombine, null);
 
                 // 最终应用贴图
-                //RenderTexture.active = rtBlur;
-                //texBlur.ReadPixels(new Rect(0, 0, size, size), 0, 0);
-                //texBlur.Apply();
-                //RenderTexture.active = null;
                 Graphics.Blit(rtBlur, texBlur);
 
                 // 释放
