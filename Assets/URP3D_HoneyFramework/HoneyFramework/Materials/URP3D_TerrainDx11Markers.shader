@@ -2,8 +2,10 @@
 // 微软文档: https://learn.microsoft.com/en-us/windows/win32/direct3d11/direct3d-11-advanced-stages-tessellation
 Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
     Properties {
-        _Tess ("Tessellation", Range(1, 32)) = 4
         _MainTex ("Base (RGB)", 2D) = "white" {}
+        _Tess ("Tessellation", Range(1, 32)) = 4
+        _MaxTessDistance ("Max Tess Distance", Range(1, 32)) = 20
+        _MinTessDistance ("Min Tess Distance", Range(1, 32)) = 1
         _HeightTex ("Height Texture", 2D) = "gray" {}
         _Displacement ("Displacement", Range(0, 3.0)) = 1.5
         _MarkersGraphic ("Markers Graphic", 2D) = "black" {}
@@ -79,6 +81,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
                 float _Displacement;
                 float4 _MarkerSettings;
             CBUFFER_END
@@ -131,13 +135,26 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return o;
             }
 
+            // 随着距相机的距离减少细分数
+            float CalcDistanceTessFactor(float4 vertex, float minDist, float maxDist, float tess) {
+                float3 wp = TransformObjectToWorld(vertex.xyz);
+                float dist = distance(wp, GetCameraPositionWS());
+                float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
+                return f;
+            }
+
             TessFactors patch(InputPatch<TessCtrlPoint, 3> i) {
                 TessFactors o;
+                float minDist = _MinTessDistance;
+                float maxDist = _MaxTessDistance;
                 float t = _Tess;
-                o.edge[0] = t;
-                o.edge[1] = t;
-                o.edge[2] = t;
-                o.inside = t;
+                float edge0 = CalcDistanceTessFactor(i[0].vertex, minDist, maxDist, t);
+                float edge1 = CalcDistanceTessFactor(i[1].vertex, minDist, maxDist, t);
+                float edge2 = CalcDistanceTessFactor(i[2].vertex, minDist, maxDist, t);
+                o.edge[0] = (edge1 + edge2) * 0.5;
+                o.edge[1] = (edge2 + edge0) * 0.5;
+                o.edge[2] = (edge0 + edge1) * 0.5;
+                o.inside = (edge0 + edge1 + edge2) * 0.333333333;
                 return o;
             }
 
@@ -424,6 +441,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
                 float _Displacement;
                 float4 _MarkerSettings;
             CBUFFER_END
@@ -461,13 +480,26 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 return o;
             }
 
+            // 随着距相机的距离减少细分数
+            float CalcDistanceTessFactor(float4 vertex, float minDist, float maxDist, float tess) {
+                float3 wp = TransformObjectToWorld(vertex.xyz);
+                float dist = distance(wp, GetCameraPositionWS());
+                float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
+                return f;
+            }
+
             TessFactors patch(InputPatch<TessCtrlPoint, 3> i) {
                 TessFactors o;
+                float minDist = _MinTessDistance;
+                float maxDist = _MaxTessDistance;
                 float t = _Tess;
-                o.edge[0] = t;
-                o.edge[1] = t;
-                o.edge[2] = t;
-                o.inside = t;
+                float edge0 = CalcDistanceTessFactor(i[0].vertex, minDist, maxDist, t);
+                float edge1 = CalcDistanceTessFactor(i[1].vertex, minDist, maxDist, t);
+                float edge2 = CalcDistanceTessFactor(i[2].vertex, minDist, maxDist, t);
+                o.edge[0] = (edge1 + edge2) * 0.5;
+                o.edge[1] = (edge2 + edge0) * 0.5;
+                o.edge[2] = (edge0 + edge1) * 0.5;
+                o.inside = (edge0 + edge1 + edge2) * 0.333333333;
                 return o;
             }
 
@@ -545,6 +577,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
                 float _Displacement;
                 float4 _MarkerSettings;
             CBUFFER_END
@@ -675,6 +709,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
                 float _Displacement;
                 float4 _MarkerSettings;
             CBUFFER_END
@@ -736,6 +772,8 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
                 float _Displacement;
                 float4 _MarkerSettings;
             CBUFFER_END
