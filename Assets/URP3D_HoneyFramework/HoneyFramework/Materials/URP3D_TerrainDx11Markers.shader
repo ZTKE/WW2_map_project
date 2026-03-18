@@ -525,8 +525,7 @@ Shader "HoneyFramework/URP3D/TerrainDx11WithMarkers" {
                 i.vertex.xyz = Disp(i.vertex.xyz, i.uv, i.normal);
                 Varyings o = (Varyings)0;
                 o.vertex = TransformObjectToHClip(i.vertex.xyz);
-                VertexNormalInputs n = GetVertexNormalInputs(i.normal, i.tangent);
-                o.normal = half3(GetVertexNormalInputs(i.normal, i.tangent).normalWS);
+                o.normal = TransformObjectToWorldNormal(i.normal);
                 return o;
             }
 

@@ -5,6 +5,8 @@ Shader "Custom/URP3D/SimpleTessLit" {
         _MainTex ("MainTex", 2D) = "white"{}
         _Color ("Color(RGB)", Color) = (1, 1, 1, 1)
         _Tess ("Tessellation", Range(1, 32)) = 4
+        _MaxTessDistance ("Max Tess Distance", Range(1, 32)) = 20
+        _MinTessDistance ("Min Tess Distance", Range(1, 32)) = 1
     }
 
     SubShader {
@@ -49,6 +51,8 @@ Shader "Custom/URP3D/SimpleTessLit" {
                 float4 _MainTex_ST;
                 half4 _Color;
                 float _Tess;
+                float _MaxTessDistance;
+                float _MinTessDistance;
             CBUFFER_END
 
             struct Attributes {
@@ -89,13 +93,26 @@ Shader "Custom/URP3D/SimpleTessLit" {
                 return o;
             }
 
+            // 随着距相机的距离减少细分数
+            float CalcDistanceTessFactor(float4 vertex, float minDist, float maxDist, float tess) {
+                float3 wp = TransformObjectToWorld(vertex.xyz);
+                float dist = distance(wp, GetCameraPositionWS());
+                float f = clamp(1.0 - (dist - minDist) / (maxDist - minDist), 0.01, 1.0) * tess;
+                return f;
+            }
+
             TessFactors patch(InputPatch<TessCtrlPoint, 3> i) {
                 TessFactors o;
+                float minDist = _MinTessDistance;
+                float maxDist = _MaxTessDistance;
                 float t = _Tess;
-                o.edge[0] = t;
-                o.edge[1] = t;
-                o.edge[2] = t;
-                o.inside = t;
+                float edge0 = CalcDistanceTessFactor(i[0].vertex, minDist, maxDist, t);
+                float edge1 = CalcDistanceTessFactor(i[1].vertex, minDist, maxDist, t);
+                float edge2 = CalcDistanceTessFactor(i[2].vertex, minDist, maxDist, t);
+                o.edge[0] = (edge1 + edge2) * 0.5;
+                o.edge[1] = (edge2 + edge0) * 0.5;
+                o.edge[2] = (edge0 + edge1) * 0.5;
+                o.inside = (edge0 + edge1 + edge2) * 0.333333333;
                 return o;
             }
 

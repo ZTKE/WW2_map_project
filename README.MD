@@ -108,7 +108,7 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 
 ## 附录三、平坦世界六边形坐标系
 
-在Honey Framework中，首先确定坐标系结构，见`Hex`，坐标为3个int值（使用`Vector3i`），xyz对应3个方向：
+在Honey Framework中，首先确定坐标系结构，见`Hex`类，坐标为3个int值（使用`Vector3i`），xyz对应3个方向：
 
 ```
       -=| X |=-    To East
@@ -157,7 +157,7 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 
 还可以发现六边形坐标xyz满足三者之和为0的特性
 
-有了基础的数据结构后，接下来是准备相关的坐标转换计算，具体见`HexCoordinates`。先看世界坐标转六边形坐标函数`HexCoordinates.WorldToHex()`，`Hex.hexRadius`为六边形中心往右到边角的长度，即为1，六边形边长也是1，所以六边形x坐标为世界坐标x的2/3，同理推导出y和z
+有了基础的数据结构后，接下来是准备相关的坐标转换计算，具体见`HexCoordinates`类。先看世界坐标转六边形坐标函数`HexCoordinates.WorldToHex()`，`Hex.hexRadius`为六边形中心往右到边角的长度，即为1，六边形边长也是1，所以六边形x坐标为世界坐标x的2/3，同理推导出y和z
 
 ```C#
 static public Vector3 WorldToHex(Vector3 pos) {
@@ -188,6 +188,8 @@ static public int HexDistance(Vector3i hexA, Vector3i hexB) {
     return Mathf.Max(Mathf.Abs(hexB.x - hexA.x), Mathf.Abs(hexB.y - hexA.y), Mathf.Abs(hexB.z - hexA.z));
 }
 ```
+
+更多功能补充见`HexNeighbors`类，例如可以使用`HexNeighbors.GetRange()`获取指定范围内的所有格子，使用`HexNeighbors.GetHexCentersWithinSquare()`获取矩形范围内的所有格子，使用`HexNeighbors.GetSharedRange()`获取两个六边形范围的共同格等
 
 ## 附录四、球形世界六边形坐标系
 

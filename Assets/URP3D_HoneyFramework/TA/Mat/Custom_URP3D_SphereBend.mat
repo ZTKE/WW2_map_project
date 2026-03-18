@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Custom_URP3D_SimpleTessLit
-  m_Shader: {fileID: 4800000, guid: ba66b401d31c0c346bc0749cc2ad0ff4, type: 3}
+  m_Name: Custom_URP3D_SphereBend
+  m_Shader: {fileID: 4800000, guid: b87eaddd33883754e914b52331ab51d6, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -31,6 +31,7 @@ Material:
     m_Floats:
     - _MaxTessDistance: 20
     - _MinTessDistance: 1
+    - _Radius: 10
     - _Tess: 4
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
