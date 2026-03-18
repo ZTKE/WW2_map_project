@@ -1,3 +1,4 @@
+// 球面扭曲公式: https://www.desmos.com/calculator/atakwzdl5p?lang=zh-CN
 Shader "Custom/URP3D/SphereBend" {
     Properties {
         _MainTex ("MainTex", 2D) = "white"{}
@@ -130,11 +131,20 @@ Shader "Custom/URP3D/SphereBend" {
                 Varyings o;
 
                 // 球面扭曲
+                float r = _Radius;
                 float3 vi = i.vertex.xyz;
                 float x = vi.x;
                 float z = vi.z;
-                float r = _Radius;
-                vi.y -= r - sqrt(r * r - x * x - z * z);
+                float t = sqrt(x * x + z * z);
+                float a = PI * 0.5 - t / r;
+                float y = r * (sin(a) - 1.0);
+                float d = r * cos(a);
+                float2 xz = float2(x, z);
+                if (length(xz) > 0.01) {
+                    xz = d * normalize(xz);
+                }
+                vi.y = y;
+                vi.xz = xz;
 
                 VertexPositionInputs v = GetVertexPositionInputs(vi);
                 o.vertex = v.positionCS;
@@ -218,11 +228,20 @@ Shader "Custom/URP3D/SphereBend" {
                 Varyings o;
 
                 // 球面扭曲
+                float r = _Radius;
                 float3 vi = i.vertex.xyz;
                 float x = vi.x;
                 float z = vi.z;
-                float r = _Radius;
-                vi.y -= r - sqrt(r * r - x * x - z * z);
+                float t = sqrt(x * x + z * z);
+                float a = PI * 0.5 - t / r;
+                float y = r * (sin(a) - 1.0);
+                float d = r * cos(a);
+                float2 xz = float2(x, z);
+                if (length(xz) > 0.01) {
+                    xz = d * normalize(xz);
+                }
+                vi.y = y;
+                vi.xz = xz;
 
                 VertexPositionInputs v = GetVertexPositionInputs(vi);
                 o.vertex = v.positionCS;
@@ -274,11 +293,20 @@ Shader "Custom/URP3D/SphereBend" {
                 Varyings o;
 
                 // 球面扭曲
+                float r = _Radius;
                 float3 vi = i.vertex.xyz;
                 float x = vi.x;
                 float z = vi.z;
-                float r = _Radius;
-                vi.y -= r - sqrt(r * r - x * x - z * z);
+                float t = sqrt(x * x + z * z);
+                float a = PI * 0.5 - t / r;
+                float y = r * (sin(a) - 1.0);
+                float d = r * cos(a);
+                float2 xz = float2(x, z);
+                if (length(xz) > 0.01) {
+                    xz = d * normalize(xz);
+                }
+                vi.y = y;
+                vi.xz = xz;
 
                 o.vertex = TransformObjectToHClip(vi);
                 return o;
@@ -394,11 +422,20 @@ Shader "Custom/URP3D/SphereBend" {
                 Varyings o = (Varyings)0;
 
                 // 球面扭曲
+                float r = _Radius;
                 float3 vi = i.vertex.xyz;
                 float x = vi.x;
                 float z = vi.z;
-                float r = _Radius;
-                vi.y -= r - sqrt(r * r - x * x - z * z);
+                float t = sqrt(x * x + z * z);
+                float a = PI * 0.5 - t / r;
+                float y = r * (sin(a) - 1.0);
+                float d = r * cos(a);
+                float2 xz = float2(x, z);
+                if (length(xz) > 0.01) {
+                    xz = d * normalize(xz);
+                }
+                vi.y = y;
+                vi.xz = xz;
 
                 o.vertex = TransformObjectToHClip(vi);
                 o.normal = TransformObjectToWorldNormal(i.normal);
