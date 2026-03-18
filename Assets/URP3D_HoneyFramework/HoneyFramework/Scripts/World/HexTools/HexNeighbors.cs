@@ -7,13 +7,13 @@ namespace HoneyFramework {
      * Class which is designed to find areas of the hexes around other specified hex.
      */
     public class HexNeighbors {
-        static public Vector3i[] neighbours = new Vector3i[]{
-                                                new Vector3i( 1,  0, -1), //  X,  0, -Z
-                                                new Vector3i( 1, -1,  0), //  X, -Y,  0
-                                                new Vector3i( 0,  1, -1), //  0,  Y, -Z
-                                                new Vector3i(-1,  1,  0), // -X,  Y,  0
-                                                new Vector3i( 0, -1,  1), //  0, -Y,  Z
-                                                new Vector3i(-1,  0,  1)};// -X,  0,  Z
+        static readonly public Vector3i[] neighbours = new Vector3i[]{
+            new Vector3i( 1,  0, -1), //  X,  0, -Z
+            new Vector3i( 1, -1,  0), //  X, -Y,  0
+            new Vector3i( 0,  1, -1), //  0,  Y, -Z
+            new Vector3i(-1,  1,  0), // -X,  Y,  0
+            new Vector3i( 0, -1,  1), //  0, -Y,  Z
+            new Vector3i(-1,  0,  1)};// -X,  0,  Z
 
         /// <summary>
         /// Function which is able to find hex position which are shared area of two radius areas. 

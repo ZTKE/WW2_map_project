@@ -17,9 +17,10 @@ namespace HoneyFramework {
         /// <returns></returns>
         static public Vector3 WorldToHex(Vector3 pos) {
             //Convert world flat coordinates into hex FLOAT position
-            float TWO_THIRD = 2.0f / 3.0f;
-            float ONE_THIRD = 1.0f / 3.0f;
-            float COMPONENT = ONE_THIRD * Mathf.Sqrt(3);
+            const float TWO_THIRD = 2.0f / 3.0f;
+            const float ONE_THIRD = 1.0f / 3.0f;
+            const float SQRT_3 = 1.732050807568877f;
+            const float COMPONENT = ONE_THIRD * SQRT_3;
 
             float x = TWO_THIRD * pos.x / Hex.hexRadius;
             float y = (COMPONENT * pos.z - ONE_THIRD * pos.x) / Hex.hexRadius;
@@ -27,7 +28,6 @@ namespace HoneyFramework {
 
             return new Vector3(x, y, z);
         }
-
 
         /// <summary>
         /// Changes Hex Space position into World3D Space plan (no height involved)

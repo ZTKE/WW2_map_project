@@ -54,20 +54,23 @@ namespace HoneyFramework {
         //      /       \
         //     /    1    \
 
-        static protected Vector2 Xdir;
-        static protected Vector2 Ydir;
-        static protected Vector2 Zdir;
-        static protected bool dirInitialized = false;
+        // 三个方向的数学公式 https://www.desmos.com/calculator/kcscgeviip?lang=zh-CN
+        static readonly protected Vector2 Xdir = new Vector2(1, 0) * hexRadius;
+        static readonly protected Vector2 Ydir = new Vector2(-0.5f, 0.8660254f) * hexRadius;
+        static readonly protected Vector2 Zdir = new Vector2(-0.5f, -0.8660254f) * hexRadius;
+        //static protected bool dirInitialized = false;
+
+        public const float SQRT_2 = 1.414213562373f;
 
         //Distance from hex center to hex corner
-        static public float hexRadius = 1f;
+        public const float hexRadius = 1f;
 
         //hex own texture coverage radius(half width)
-        static public float hexTextureScale = 1.6f * hexRadius;
+        public const float hexTextureScale = 1.6f * hexRadius;
         //calculation which considers area which may be influenced directly by texture, then adds small margin to ensure interaction(neighbor) pixels are taken into account as well
-        static public float hexTexturePotentialReach = hexTextureScale * hexRadius * Mathf.Sqrt(2) + 0.001f; //~ 2.262 with default honey settings
+        public const float hexTexturePotentialReach = hexTextureScale * hexRadius * SQRT_2 + 0.001f; //~ 2.262 with default honey settings
 
-        static public float foregroundRadius = 1.1f; //NOTE! this value should not be bigger than hexTexturePotentialReach because their foreground may not be picked up by any chunk! 
+        public const float foregroundRadius = 1.1f; //NOTE! this value should not be bigger than hexTexturePotentialReach because their foreground may not be picked up by any chunk! 
 
         [NonSerialized]
         public Vector3i position;
@@ -140,8 +143,7 @@ namespace HoneyFramework {
         /// </summary>
         /// <returns></returns>
         public static Vector2 GetDirX() {
-            if (!dirInitialized) InitializeDirections();
-
+            //if (!dirInitialized) InitializeDirections();
             return Xdir;
         }
 
@@ -150,8 +152,7 @@ namespace HoneyFramework {
         /// </summary>
         /// <returns></returns>
         public static Vector2 GetDirY() {
-            if (!dirInitialized) InitializeDirections();
-
+            //if (!dirInitialized) InitializeDirections();
             return Ydir;
         }
 
@@ -160,22 +161,20 @@ namespace HoneyFramework {
         /// </summary>
         /// <returns></returns>
         public static Vector2 GetDirZ() {
-            if (!dirInitialized) InitializeDirections();
-
+            //if (!dirInitialized) InitializeDirections();
             return Zdir;
         }
 
+        //private static void InitializeDirections() {
+        //    Quaternion Yrot = Quaternion.Euler(0, 0, 120);
+        //    Quaternion Zrot = Quaternion.Euler(0, 0, 240);
 
-        private static void InitializeDirections() {
-            Quaternion Yrot = Quaternion.Euler(0, 0, 120);
-            Quaternion Zrot = Quaternion.Euler(0, 0, 240);
+        //    Vector3 alongXVecotr = new Vector3(Hex.hexRadius, 0, 0);
 
-            Vector3 alongXVecotr = new Vector3(Hex.hexRadius, 0, 0);
-
-            Xdir = (Vector2)(alongXVecotr);
-            Ydir = (Vector2)(Yrot * alongXVecotr);
-            Zdir = (Vector2)(Zrot * alongXVecotr);
-        }
+        //    Xdir = (Vector2)(alongXVecotr);
+        //    Ydir = (Vector2)(Yrot * alongXVecotr);
+        //    Zdir = (Vector2)(Zrot * alongXVecotr);
+        //}
 
         /// <summary>
         /// Converts hex position to world 2d plane (X ,Z)

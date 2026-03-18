@@ -1,6 +1,6 @@
 # Honey Framework URP改版
 
-> 版本：v1.2.0
+> 版本：v1.2.1
 >
 > 修改日期：2026.03.17
 >
@@ -49,6 +49,10 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 - Gamma空间修改为线性空间，需要调整烘焙代码
 
 ## 三、Change Log
+
+### 2026.03.09_v1.2.1
+
+- 优化Honey Framework基础结构代码（部分static改为const）
 
 ### 2026.03.09_v1.2.0
 
@@ -104,7 +108,86 @@ MSAA是一个画面抗锯齿技术，但是加上这个MSAA之后渲染代码会
 
 ## 附录三、平坦世界六边形坐标系
 
-todo...
+在Honey Framework中，首先确定坐标系结构，见`Hex`，坐标为3个int值（使用`Vector3i`），xyz对应3个方向：
+
+```
+      -=| X |=-    To East
+     \    0    /
+      \_______/
+  -1  /       \    1 
+ ____/    0    \______
+     \         /      
+  -1  \_______/    1
+      /       \
+     /    0    \
+
+      -=| Y |=-      To North-West
+     \    1    /
+      \_______/
+   1  /       \    0
+ ____/    0    \______ 
+     \         /      
+   0  \_______/   -1
+      /       \
+     /   -1    \
+
+      -=| Z |=-      To South-West
+     \   -1    /
+      \_______/
+   0  /       \   -1
+ ____/    0    \______
+     \         /
+   1  \_______/    0
+      /       \
+     /    1    \
+```
+
+```
+       \ (0,1,-1)/       \ (2,0,-2)/
+(-1,1,0)\_______/ (1,0,-1)\_______/ (3,-1,-2)
+        /       \         /       \
+   ____/ (0,0,0) \_______/(2,-1,-1)\_______
+       \         /       \         /
+(-1,0,1)\_______/ (1,-1,0)\_______/ (3,-2,-1)
+        /       \         /       \
+       / (0,-1,1)\       / (2,-2,0)\
+```
+
+即x轴对应的是(1, 0)方向，y轴对应x轴旋转120度为(-0.5, 0.8660254)，z轴对应x轴旋转240度为(-0.5, -0.8660254)。计算公式：[六边形坐标旋转 | Desmos](https://www.desmos.com/calculator/kcscgeviip?lang=zh-CN)
+
+还可以发现六边形坐标xyz满足三者之和为0的特性
+
+有了基础的数据结构后，接下来是准备相关的坐标转换计算，具体见`HexCoordinates`。先看世界坐标转六边形坐标函数`HexCoordinates.WorldToHex()`，`Hex.hexRadius`为六边形中心往右到边角的长度，即为1，六边形边长也是1，所以六边形x坐标为世界坐标x的2/3，同理推导出y和z
+
+```C#
+static public Vector3 WorldToHex(Vector3 pos) {
+    const float TWO_THIRD = 2.0f / 3.0f;
+    const float ONE_THIRD = 1.0f / 3.0f;
+    const float SQRT_3 = 1.732050807568877f;
+    const float COMPONENT = ONE_THIRD * SQRT_3;
+    float x = TWO_THIRD * pos.x / Hex.hexRadius;
+    float y = (COMPONENT * pos.z - ONE_THIRD * pos.x) / Hex.hexRadius;
+    float z = -x - y;
+    return new Vector3(x, y, z);
+}
+```
+
+然后看`HexCoordinates.HexToWorld()`，其中`Hex.GetDir...()`对应3个基础方向向量（[六边形坐标旋转 | Desmos](https://www.desmos.com/calculator/kcscgeviip?lang=zh-CN)）
+
+```C#
+static public Vector2 HexToWorld(Vector3i pos) {
+    Vector2 worldPos = Hex.GetDirX() * pos.x + Hex.GetDirY() * pos.y + Hex.GetDirZ() * pos.z;
+    return worldPos;
+}
+```
+
+如果要计算两个六边形距离，则使用`HexCoordinates.HexDistance()`，这里的距离相当于计算从`hexA`扩大多少半径能碰到`hexB`
+
+```C#
+static public int HexDistance(Vector3i hexA, Vector3i hexB) {
+    return Mathf.Max(Mathf.Abs(hexB.x - hexA.x), Mathf.Abs(hexB.y - hexA.y), Mathf.Abs(hexB.z - hexA.z));
+}
+```
 
 ## 附录四、球形世界六边形坐标系
 
