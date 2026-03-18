@@ -339,8 +339,8 @@ Transform:
   m_GameObject: {fileID: 794959899}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -5.570829, z: 0}
-  m_LocalScale: {x: 11.141658, y: 11.141658, z: 11.141658}
+  m_LocalPosition: {x: 0, y: -10, z: 0}
+  m_LocalScale: {x: 20, y: 20, z: 20}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -376,7 +376,7 @@ Material:
     m_Floats:
     - _MaxTessDistance: 20
     - _MinTessDistance: 1
-    - _Radius: 5.570829
+    - _Radius: 10
     - _Tess: 4
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
@@ -566,7 +566,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   plane: {fileID: 2064417084}
   sphere: {fileID: 794959899}
-  radius: 5.570829
+  radius: 10
   playAnim: 1
   spdAnim: 1
   radiusAnimMin: 5
@@ -5467,7 +5467,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2064417084}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

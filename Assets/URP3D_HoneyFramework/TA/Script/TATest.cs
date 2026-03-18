@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-[ExecuteAlways]
+// [ExecuteAlways]
 public class TATest : MonoBehaviour {
     [SerializeField] private GameObject plane;
     [SerializeField] private GameObject sphere;

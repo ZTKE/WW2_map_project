@@ -146,10 +146,15 @@ Shader "Custom/URP3D/SphereBend" {
                 vi.y = y;
                 vi.xz = xz;
 
+                // 重构法线
+                float3 ni = i.normal;
+                float3 so = float3(0.0, -r, 0.0);
+                ni = normalize(vi - so);
+
                 VertexPositionInputs v = GetVertexPositionInputs(vi);
                 o.vertex = v.positionCS;
                 o.posWS = v.positionWS;
-                o.normal = TransformObjectToWorldNormal(i.normal);
+                o.normal = TransformObjectToWorldNormal(ni);
                 o.uv = TRANSFORM_TEX(i.uv, _MainTex);
                 o.color = i.color;
                 return o;
@@ -168,8 +173,22 @@ Shader "Custom/URP3D/SphereBend" {
                 return vertAfter(i);
             }
 
+            #define TEST_GRID
             half4 frag(Varyings i) : SV_TARGET {
-                half4 albedo = _Color * SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
+                half4 albedo = _Color;
+
+                #ifdef TEST_GRID
+                    const float GRID_SIZE = 10.0;
+                    const float LINE_WIDTH = 0.01;
+
+                    float2 grid2 = step(1.0 - LINE_WIDTH, cos(i.uv * TWO_PI * GRID_SIZE));
+                    float grid = min(grid2.x + grid2.y, 1.0);
+                    float circle = step(1.0 - LINE_WIDTH, cos(length(i.uv - 0.5) * TWO_PI * GRID_SIZE));
+
+                    albedo -= half4((saturate(grid + circle) * 0.5).xxx, 0.0);
+                #endif
+
+                albedo *= SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv);
 
                 InputData d = (InputData)0;
                 d.positionWS = i.posWS;
@@ -243,9 +262,14 @@ Shader "Custom/URP3D/SphereBend" {
                 vi.y = y;
                 vi.xz = xz;
 
+                // 重构法线
+                float3 ni = i.normal;
+                float3 so = float3(0.0, -r, 0.0);
+                ni = normalize(vi - so);
+
                 VertexPositionInputs v = GetVertexPositionInputs(vi);
                 o.vertex = v.positionCS;
-                float3 n = TransformObjectToWorldNormal(i.normal);
+                float3 n = TransformObjectToWorldNormal(ni);
                 Light mainLight = GetMainLight();
                 float3 l = mainLight.direction;
                 float3 p = v.positionWS;
@@ -437,8 +461,13 @@ Shader "Custom/URP3D/SphereBend" {
                 vi.y = y;
                 vi.xz = xz;
 
+                // 重构法线
+                float3 ni = i.normal;
+                float3 so = float3(0.0, -r, 0.0);
+                ni = normalize(vi - so);
+
                 o.vertex = TransformObjectToHClip(vi);
-                o.normal = TransformObjectToWorldNormal(i.normal);
+                o.normal = TransformObjectToWorldNormal(ni);
                 return o;
             }
 
